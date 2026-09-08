@@ -5,6 +5,7 @@ dist/
 .env.*
 !.env.example
 .local/
+.worktrees/
 .superpowers/
 *.log
 .DS_Store
