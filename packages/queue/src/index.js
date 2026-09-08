@@ -86,7 +86,7 @@ export function createInMemoryQueue({
     while (acceptingWork) {
       const message = await nextMessage();
 
-      if (!message) {
+      if (!acceptingWork || !message) {
         return;
       }
 
