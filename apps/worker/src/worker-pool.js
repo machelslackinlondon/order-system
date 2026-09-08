@@ -39,6 +39,7 @@ export function createWorkerPool({
   const startedAt = now();
   let acceptingJobs = true;
   let activeWorkers = 0;
+  let dispatching = false;
   let successfulJobs = 0;
   let failedJobs = 0;
   let totalProcessingTimeMs = 0;
@@ -53,10 +54,19 @@ export function createWorkerPool({
   }
 
   function dispatch() {
-    while (activeWorkers < maximumWorkers && pendingJobs.length > 0) {
-      const entry = pendingJobs.shift();
-      activeWorkers += 1;
-      void processJob(entry);
+    if (dispatching) {
+      return;
+    }
+
+    dispatching = true;
+    try {
+      while (activeWorkers < maximumWorkers && pendingJobs.length > 0) {
+        const entry = pendingJobs.shift();
+        activeWorkers += 1;
+        void processJob(entry);
+      }
+    } finally {
+      dispatching = false;
     }
   }
 
