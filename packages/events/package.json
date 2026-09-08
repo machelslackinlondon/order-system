@@ -1,5 +1,5 @@
 {
-  "name": "@distributed-order-system/events",
+  "name": "@order-system/events",
   "version": "0.1.0",
   "private": true,
   "type": "module",

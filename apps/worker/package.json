@@ -1,5 +1,5 @@
 {
-  "name": "@distributed-order-system/worker",
+  "name": "@order-system/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",

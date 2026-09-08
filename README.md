@@ -2,7 +2,7 @@
 
 A compact reference implementation and practical guide to order processing, concurrency, messaging, failure handling, database consistency, AWS architecture, observability, and disciplined test-driven delivery.
 
-Repository: <https://github.com/machelslackinlondon/distributed-order-system>
+Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
@@ -28,8 +28,8 @@ The repository deliberately uses a small number of well-defined modules rather t
 ## Run locally
 
 ```bash
-git clone https://github.com/machelslackinlondon/distributed-order-system.git
-cd distributed-order-system
+git clone https://github.com/machelslackinlondon/order-system.git
+cd order-system
 cp .env.example .env
 npm install
 docker compose up -d postgres

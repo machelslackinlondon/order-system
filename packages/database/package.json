@@ -1,5 +1,5 @@
 {
-  "name": "@distributed-order-system/database",
+  "name": "@order-system/database",
   "version": "0.1.0",
   "private": true,
   "type": "module",

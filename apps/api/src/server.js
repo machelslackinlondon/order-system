@@ -1,9 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  createOrderRepository,
-  createPool,
-  createProductRepository,
-} from '@distributed-order-system/database';
+import { createOrderRepository, createPool, createProductRepository } from '@order-system/database';
 
 import { buildApp } from './app.js';
 import { createOrderService } from './create-order.js';

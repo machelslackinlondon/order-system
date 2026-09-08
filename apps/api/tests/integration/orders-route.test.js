@@ -5,7 +5,7 @@ import {
   createPool,
   createProductRepository,
   DatabaseUnavailableError,
-} from '@distributed-order-system/database';
+} from '@order-system/database';
 
 import { buildApp } from '../../src/app.js';
 import { createOrderService } from '../../src/create-order.js';

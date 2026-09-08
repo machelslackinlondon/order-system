@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { DatabaseUnavailableError } from '@distributed-order-system/database';
+import { DatabaseUnavailableError } from '@order-system/database';
 
 import { OrderApplicationError } from './order-errors.js';
 import { registerOrdersRoute } from './orders-route.js';

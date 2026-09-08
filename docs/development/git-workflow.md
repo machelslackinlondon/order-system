@@ -2,7 +2,7 @@
 
 ## Repository
 
-- Location: <https://github.com/machelslackinlondon/distributed-order-system>
+- Location: <https://github.com/machelslackinlondon/order-system>
 - Default branch: `main`
 - Delivery style: small focused commits pushed after validation
 

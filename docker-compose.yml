@@ -1,4 +1,4 @@
-name: distributed-order-system
+name: order-system
 
 services:
   postgres:
