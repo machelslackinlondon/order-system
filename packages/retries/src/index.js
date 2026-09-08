@@ -17,8 +17,8 @@ export class PermanentError extends Error {
 }
 
 export class InvalidRetryOptionsError extends RangeError {
-  constructor() {
-    super('Maximum attempts must be a positive integer');
+  constructor(message) {
+    super(message);
     this.name = 'InvalidRetryOptionsError';
     this.code = 'INVALID_RETRY_OPTIONS';
   }
@@ -36,17 +36,45 @@ export class MessageDeadLetteredError extends Error {
   }
 }
 
+export class RetryInfrastructureError extends AggregateError {
+  constructor({ stage, attempts, classification, processingError, infrastructureError }) {
+    super(
+      [processingError, infrastructureError],
+      `Retry infrastructure failed during ${stage.toLowerCase()}`,
+      { cause: processingError },
+    );
+    this.name = 'RetryInfrastructureError';
+    this.code = 'RETRY_INFRASTRUCTURE_ERROR';
+    this.stage = stage;
+    this.attempts = attempts;
+    this.classification = classification;
+    this.processingError = processingError;
+    this.infrastructureError = infrastructureError;
+  }
+}
+
 function classifyError(error) {
   return error instanceof TransientError ? 'TRANSIENT' : 'PERMANENT';
 }
 
 function retryDelay({ attempt, baseDelayMs, jitterRatio, random }) {
   const exponentialDelay = baseDelayMs * 2 ** (attempt - 1);
-  const jitterMultiplier = 1 - jitterRatio + 2 * jitterRatio * random();
+  const randomValue = random();
+  if (!Number.isFinite(randomValue) || randomValue < 0 || randomValue > 1) {
+    throw new InvalidRetryOptionsError('Random source must return a number between zero and one');
+  }
+  const jitterMultiplier = 1 - jitterRatio + 2 * jitterRatio * randomValue;
   return Math.round(exponentialDelay * jitterMultiplier);
 }
 
 function serializeError(error) {
+  if (!(error instanceof Error)) {
+    return {
+      name: 'NonErrorThrown',
+      message: String(error),
+    };
+  }
+
   return {
     name: error.name,
     message: error.message,
@@ -66,9 +94,18 @@ export async function executeWithRetry({
   now = () => new Date(),
 }) {
   if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) {
-    throw new InvalidRetryOptionsError();
+    throw new InvalidRetryOptionsError('Maximum attempts must be a positive integer');
   }
 
+  if (!Number.isFinite(baseDelayMs) || baseDelayMs <= 0) {
+    throw new InvalidRetryOptionsError('Base delay must be a positive finite number');
+  }
+
+  if (!Number.isFinite(jitterRatio) || jitterRatio < 0 || jitterRatio > 1) {
+    throw new InvalidRetryOptionsError('Jitter ratio must be between zero and one');
+  }
+
+  const originalMessage = structuredClone(message);
   const firstAttemptAt = now().toISOString();
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -79,22 +116,42 @@ export async function executeWithRetry({
       const shouldRetry = classification === 'TRANSIENT' && attempt < maxAttempts;
 
       if (shouldRetry) {
-        await delay(retryDelay({ attempt, baseDelayMs, jitterRatio, random }));
+        try {
+          await delay(retryDelay({ attempt, baseDelayMs, jitterRatio, random }));
+        } catch (infrastructureError) {
+          throw new RetryInfrastructureError({
+            stage: 'RETRY_DELAY',
+            attempts: attempt,
+            classification,
+            processingError: error,
+            infrastructureError,
+          });
+        }
         continue;
       }
 
-      await deadLetterQueue.publish({
-        type: 'DEAD_LETTER',
-        originalMessage: message,
-        retry: {
+      try {
+        await deadLetterQueue.publish({
+          type: 'DEAD_LETTER',
+          originalMessage,
+          retry: {
+            attempts: attempt,
+            maxAttempts,
+            classification,
+            firstAttemptAt,
+            failedAt: now().toISOString(),
+            lastError: serializeError(error),
+          },
+        });
+      } catch (infrastructureError) {
+        throw new RetryInfrastructureError({
+          stage: 'DEAD_LETTER_PUBLICATION',
           attempts: attempt,
-          maxAttempts,
           classification,
-          firstAttemptAt,
-          failedAt: now().toISOString(),
-          lastError: serializeError(error),
-        },
-      });
+          processingError: error,
+          infrastructureError,
+        });
+      }
 
       throw new MessageDeadLetteredError({
         attempts: attempt,
