@@ -3,6 +3,41 @@ import { describe, expect, it } from '@jest/globals';
 import { DatabaseUnavailableError, withTransaction } from '../../src/index.js';
 
 describe('withTransaction', () => {
+  it.each(['READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE'])(
+    'starts a transaction at the requested %s isolation level',
+    async (isolationLevel) => {
+      const queries = [];
+      const client = {
+        async query(command) {
+          queries.push(command);
+        },
+        release() {},
+      };
+      const pool = {
+        async connect() {
+          return client;
+        },
+      };
+
+      await expect(
+        withTransaction(pool, async () => 'completed', { isolationLevel }),
+      ).resolves.toBe('completed');
+      expect(queries).toEqual([`BEGIN ISOLATION LEVEL ${isolationLevel}`, 'COMMIT']);
+    },
+  );
+
+  it('rejects unsupported isolation levels before acquiring a connection', async () => {
+    const pool = {
+      async connect() {
+        throw new Error('connection should not be acquired');
+      },
+    };
+
+    await expect(
+      withTransaction(pool, async () => undefined, { isolationLevel: 'READ UNCOMMITTED' }),
+    ).rejects.toBeInstanceOf(RangeError);
+  });
+
   it('preserves the operation error and discards the client when rollback fails', async () => {
     const operationError = new Error('processing failed');
     const rollbackError = Object.assign(new Error('connection lost during rollback'), {
