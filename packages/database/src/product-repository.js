@@ -26,5 +26,23 @@ export function createProductRepository(queryable) {
 
       return result.rowCount === 0 ? null : mapProduct(result.rows[0]);
     },
+
+    async reserveWithVersion({ productId, quantity, expectedVersion }) {
+      const result = await runQuery(
+        queryable,
+        `
+          UPDATE products
+          SET stock = stock - $2,
+              version = version + 1
+          WHERE id = $1
+            AND stock >= $2
+            AND version = $3
+          RETURNING id, name, stock, version
+        `,
+        [productId, quantity, expectedVersion],
+      );
+
+      return result.rowCount === 0 ? null : mapProduct(result.rows[0]);
+    },
   };
 }
