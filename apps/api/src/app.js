@@ -4,6 +4,12 @@ import { DatabaseUnavailableError } from '@distributed-order-system/database';
 import { OrderApplicationError } from './order-errors.js';
 import { registerOrdersRoute } from './orders-route.js';
 
+const requestValidationErrorCodes = new Set([
+  'FST_ERR_CTP_EMPTY_JSON_BODY',
+  'FST_ERR_CTP_INVALID_JSON_BODY',
+  'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+]);
+
 function errorBody(code, message) {
   return { error: { code, message } };
 }
@@ -20,7 +26,7 @@ export function buildApp({ orderService, logger = false }) {
   });
 
   app.setErrorHandler((error, request, reply) => {
-    if (error.validation) {
+    if (error.validation || requestValidationErrorCodes.has(error.code)) {
       return reply.code(400).send(errorBody('VALIDATION_ERROR', 'Invalid request'));
     }
 
