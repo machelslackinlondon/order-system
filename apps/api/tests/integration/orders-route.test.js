@@ -18,15 +18,17 @@ const customerId = '33333333-3333-4333-8333-333333333333';
 
 describe('POST /orders', () => {
   let app;
+  let orders;
   let pool;
   let products;
 
   beforeAll(async () => {
     pool = createPool({ connectionString: TEST_DATABASE_URL, max: 4 });
     products = createProductRepository(pool);
+    orders = createOrderRepository(pool);
     const orderService = createOrderService({
       productRepository: products,
-      orderRepository: createOrderRepository(pool),
+      orderRepository: orders,
       idGenerator: randomUUID,
     });
     app = buildApp({ orderService });
@@ -117,6 +119,53 @@ describe('POST /orders', () => {
     await expect(
       pool.query('SELECT count(*)::integer AS count FROM orders'),
     ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it('returns a matching order created before request fingerprints were stored', async () => {
+    const product = await createProduct();
+    const legacyOrder = await orders.create({
+      id: randomUUID(),
+      customerId,
+      productId: product.id,
+      quantity: 2,
+      amount: 2598,
+      status: 'PENDING',
+      version: 1,
+      idempotencyKey: 'request-123',
+    });
+
+    const response = await app.inject(requestFor(product.id));
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ id: legacyOrder.id });
+    await expect(
+      pool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it('rejects a different payload for an order without a stored fingerprint', async () => {
+    const product = await createProduct();
+    await orders.create({
+      id: randomUUID(),
+      customerId,
+      productId: product.id,
+      quantity: 2,
+      amount: 2598,
+      status: 'PENDING',
+      version: 1,
+      idempotencyKey: 'request-123',
+    });
+
+    const response = await app.inject(
+      requestFor(product.id, {
+        payload: { customerId, productId: product.id, quantity: 3, amount: 2598 },
+      }),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      error: { code: 'IDEMPOTENCY_KEY_REUSED' },
+    });
   });
 
   it('creates one order when identical requests arrive simultaneously', async () => {

@@ -8,7 +8,7 @@ import {
 } from '@order-system/database';
 
 import { createAtomicOrderService } from '../../src/index.js';
-import { InsufficientInventoryError } from '../../src/order-errors.js';
+import { IdempotencyKeyReusedError, InsufficientInventoryError } from '../../src/order-errors.js';
 import {
   TEST_DATABASE_URL,
   resetDatabase,
@@ -105,6 +105,43 @@ describe('atomic order creation', () => {
     await expect(verificationProcessing.findByOrderId(orderId)).resolves.toMatchObject({
       orderId,
       status: 'PENDING',
+    });
+  });
+
+  it('reserves inventory once when identical atomic requests run concurrently', async () => {
+    const product = await createProduct(5);
+    const input = orderInput(product.id, { idempotencyKey: 'atomic-retry' });
+    const service = createAtomicOrderService({ pool, idGenerator: randomUUID });
+
+    const results = await Promise.all([service.createOrder(input), service.createOrder(input)]);
+
+    expect(new Set(results.map(({ id }) => id))).toHaveProperty('size', 1);
+    await expect(verificationProducts.findById(product.id)).resolves.toMatchObject({
+      stock: 3,
+      version: 2,
+    });
+    await expect(
+      verificationPool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+    await expect(
+      verificationPool.query('SELECT count(*)::integer AS count FROM order_processing'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it('rejects a reused atomic key with a different payload without another reservation', async () => {
+    const product = await createProduct(5);
+    const service = createAtomicOrderService({ pool, idGenerator: randomUUID });
+    await service.createOrder(orderInput(product.id, { idempotencyKey: 'atomic-mismatch' }));
+
+    await expect(
+      service.createOrder(
+        orderInput(product.id, { idempotencyKey: 'atomic-mismatch', quantity: 1 }),
+      ),
+    ).rejects.toBeInstanceOf(IdempotencyKeyReusedError);
+
+    await expect(verificationProducts.findById(product.id)).resolves.toMatchObject({
+      stock: 3,
+      version: 2,
     });
   });
 
