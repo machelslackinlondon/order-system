@@ -4,8 +4,8 @@ import { IdempotencyKeyReusedError } from './order-errors.js';
 
 export function fingerprintOrderRequest(input) {
   const canonicalRequest = JSON.stringify([
-    input.customerId,
-    input.productId,
+    input.customerId.toLowerCase(),
+    input.productId.toLowerCase(),
     input.quantity,
     input.amount,
   ]);

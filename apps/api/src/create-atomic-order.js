@@ -33,6 +33,11 @@ export function createAtomicOrderService({ pool, idGenerator }) {
           const orders = createOrderRepository(client);
           const processing = createOrderProcessingRepository(client);
           const product = await products.findByIdForUpdate(input.productId);
+          const concurrentOrder = await orders.findByIdempotencyKey(input.idempotencyKey);
+
+          if (concurrentOrder) {
+            return resolveIdempotentOrder(concurrentOrder, requestFingerprint);
+          }
 
           if (!product) {
             throw new ProductNotFoundError();
