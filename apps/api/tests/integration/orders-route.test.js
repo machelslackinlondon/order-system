@@ -117,11 +117,67 @@ describe('POST /orders', () => {
     });
   });
 
+  it('returns 400 when the body contains an unexpected property', async () => {
+    const product = await createProduct();
+    const response = await app.inject(
+      requestFor(product.id, {
+        payload: {
+          customerId,
+          productId: product.id,
+          quantity: 2,
+          amount: 2598,
+          unexpected: true,
+        },
+      }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
+  it('returns 400 when quantity is represented as a string', async () => {
+    const product = await createProduct();
+    const response = await app.inject(
+      requestFor(product.id, {
+        payload: {
+          customerId,
+          productId: product.id,
+          quantity: '2',
+          amount: 2598,
+        },
+      }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
   it('returns 400 when Idempotency-Key is missing', async () => {
     const product = await createProduct();
     const response = await app.inject(
       requestFor(product.id, {
         headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
+  it('returns a stable 400 envelope when Idempotency-Key is whitespace only', async () => {
+    const product = await createProduct();
+    const response = await app.inject(
+      requestFor(product.id, {
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': '   ',
+        },
       }),
     );
 
