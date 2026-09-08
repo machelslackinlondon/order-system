@@ -20,7 +20,7 @@ Fastify validates the HTTP body and `Idempotency-Key`. The order service first r
 
 On the normal path, the winning request publishes one `ORDER_CREATED` message after persistence. Matching sequential or concurrent retries return the committed order without publishing another message. Database persistence and local publication are not atomic; the queue guidance records this failure window.
 
-The HTTP path reads stock but does not reserve or decrement it. Transaction and locking behavior is demonstrated separately, while queued worker processing remains a later step. A `201` response means the request is currently eligible for processing, not that fulfillment is guaranteed.
+The HTTP path reads stock but does not reserve or decrement it. Transaction and locking behavior is demonstrated separately, while queue-to-worker processing remains a later step. A `201` response means the request is currently eligible for processing, not that fulfillment is guaranteed.
 
 ## Boundaries
 
@@ -28,7 +28,7 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
 - `packages/database` owns connection pooling, migrations, parameterized SQL, row mapping, and database availability translation.
 - `packages/events` owns stable message construction.
 - `packages/queue` owns the local FIFO delivery and acknowledgement contract.
-- `apps/worker` remains inactive until worker-pool processing is introduced.
+- `apps/worker` owns bounded concurrent execution and worker metrics; it is not yet connected to the queue.
 
 The app factory does not listen on import. Tests inject the order service and use Fastify's in-process request injection, while `server.js` constructs production dependencies and opens the loopback listener.
 

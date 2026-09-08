@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The stock check remains advisory until a later worker phase.
+`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. A configurable local worker pool is available for bounded concurrent processing, while queue-to-pool wiring remains separate.
 
 ## Architecture direction
 
@@ -70,7 +70,7 @@ npm run build
 ## Workspaces
 
 - `apps/api`: HTTP API boundary
-- `apps/worker`: asynchronous worker boundary
+- `apps/worker`: configurable asynchronous worker pool
 - `packages/database`: persistence and migrations
 - `packages/queue`: local FIFO queue and delivery contract
 - `packages/events`: event contracts and publishing
@@ -99,5 +99,5 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 - The caller supplies `amount` because product pricing is not modeled yet.
 - The queue is process-local and volatile; durable delivery arrives in a later phase.
 - Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
-- Workers, delivery retries, payments, and Redis behavior arrive in later phases.
+- Queue-to-worker delivery, retries, payments, and Redis behavior arrive in later phases.
 - PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.
