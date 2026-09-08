@@ -9,7 +9,15 @@ function errorBody(code, message) {
 }
 
 export function buildApp({ orderService, logger = false }) {
-  const app = Fastify({ logger });
+  const app = Fastify({
+    logger,
+    ajv: {
+      customOptions: {
+        coerceTypes: false,
+        removeAdditional: false,
+      },
+    },
+  });
 
   app.setErrorHandler((error, request, reply) => {
     if (error.validation) {
@@ -17,7 +25,8 @@ export function buildApp({ orderService, logger = false }) {
     }
 
     if (error instanceof OrderApplicationError) {
-      return reply.code(error.statusCode).send(errorBody(error.code, error.message));
+      const message = error.code === 'VALIDATION_ERROR' ? 'Invalid request' : error.message;
+      return reply.code(error.statusCode).send(errorBody(error.code, message));
     }
 
     if (error instanceof DatabaseUnavailableError || error.code === 'DATABASE_UNAVAILABLE') {
