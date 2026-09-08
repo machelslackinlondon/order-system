@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { createInMemoryQueue } from '../../../queue/src/index.js';
+import { createInMemoryQueue } from '@order-system/queue';
 
 const retryApi = import('../../src/index.js');
 
@@ -126,6 +126,95 @@ describe('retry processing', () => {
     });
   });
 
+  it.each([
+    ['a full queue', 'QUEUE_CAPACITY_EXCEEDED'],
+    ['a shut-down queue', 'QUEUE_SHUTDOWN'],
+  ])('preserves the processing failure when the DLQ is %s', async (queueState, queueCode) => {
+    const { executeWithRetry, PermanentError } = await retryApi;
+    const deadLetterQueue = createInMemoryQueue({ capacity: 1 });
+    if (queueState === 'a full queue') {
+      await deadLetterQueue.publish({ messageId: 'existing-dead-letter' });
+    } else {
+      await deadLetterQueue.shutdown();
+    }
+    const processingError = new PermanentError('order payload is invalid');
+
+    const failure = await executeWithRetry({
+      message: orderMessage(),
+      deadLetterQueue,
+      operation: async () => {
+        throw processingError;
+      },
+    }).catch((error) => error);
+
+    expect(failure).toMatchObject({
+      name: 'RetryInfrastructureError',
+      code: 'RETRY_INFRASTRUCTURE_ERROR',
+      stage: 'DEAD_LETTER_PUBLICATION',
+      attempts: 1,
+      classification: 'PERMANENT',
+      infrastructureError: expect.objectContaining({ code: queueCode }),
+    });
+    expect(failure.processingError).toBe(processingError);
+    expect(failure.errors).toEqual([processingError, failure.infrastructureError]);
+
+    if (queueState === 'a full queue') {
+      await deadLetterQueue.shutdown();
+    }
+  });
+
+  it('preserves the transient failure when scheduling its retry fails', async () => {
+    const { executeWithRetry, TransientError } = await retryApi;
+    const deadLetterQueue = createInMemoryQueue();
+    const processingError = new TransientError('inventory service unavailable');
+    const timerError = new Error('timer unavailable');
+
+    const failure = await executeWithRetry({
+      message: orderMessage(),
+      deadLetterQueue,
+      operation: async () => {
+        throw processingError;
+      },
+      delay: async () => {
+        throw timerError;
+      },
+    }).catch((error) => error);
+
+    expect(failure).toMatchObject({
+      name: 'RetryInfrastructureError',
+      code: 'RETRY_INFRASTRUCTURE_ERROR',
+      stage: 'RETRY_DELAY',
+      attempts: 1,
+      classification: 'TRANSIENT',
+    });
+    expect(failure.processingError).toBe(processingError);
+    expect(failure.infrastructureError).toBe(timerError);
+    expect(failure.errors).toEqual([processingError, timerError]);
+    expect(deadLetterQueue.getMetrics()).toMatchObject({ queueDepth: 0 });
+    await deadLetterQueue.shutdown();
+  });
+
+  it('dead-letters a snapshot of the message from before processing began', async () => {
+    const { executeWithRetry, PermanentError } = await retryApi;
+    const deadLetterQueue = createInMemoryQueue();
+    const message = orderMessage();
+
+    await expect(
+      executeWithRetry({
+        message,
+        deadLetterQueue,
+        operation: async (processingMessage) => {
+          processingMessage.payload.orderId = 'changed-by-operation';
+          throw new PermanentError('order payload is invalid');
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'MESSAGE_DEAD_LETTERED' });
+    message.payload.orderId = 'changed-by-caller';
+
+    const deadLetter = await takeOne(deadLetterQueue);
+    expect(deadLetter.originalMessage).toEqual(orderMessage());
+  });
+
   it('treats an unclassified error as permanent', async () => {
     const { executeWithRetry } = await retryApi;
     const deadLetterQueue = createInMemoryQueue();
@@ -145,6 +234,35 @@ describe('retry processing', () => {
     expect(attempts).toBe(1);
     const deadLetter = await takeOne(deadLetterQueue);
     expect(deadLetter.retry.classification).toBe('PERMANENT');
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a string', 'plain failure'],
+  ])('dead-letters %s thrown by an operation', async (_description, thrownValue) => {
+    const { executeWithRetry } = await retryApi;
+    const deadLetterQueue = createInMemoryQueue();
+
+    await expect(
+      executeWithRetry({
+        message: orderMessage(),
+        deadLetterQueue,
+        operation: async () => {
+          throw thrownValue;
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'MESSAGE_DEAD_LETTERED',
+      classification: 'PERMANENT',
+      attempts: 1,
+    });
+
+    const deadLetter = await takeOne(deadLetterQueue);
+    expect(deadLetter.retry.lastError).toEqual({
+      name: 'NonErrorThrown',
+      message: String(thrownValue),
+    });
   });
 
   it('uses bounded exponential backoff before dead-lettering exhausted work', async () => {
@@ -229,4 +347,53 @@ describe('retry processing', () => {
       }),
     ).rejects.toMatchObject({ code: 'INVALID_RETRY_OPTIONS' });
   });
+
+  it.each([
+    ['zero base delay', { baseDelayMs: 0 }],
+    ['negative base delay', { baseDelayMs: -1 }],
+    ['non-finite base delay', { baseDelayMs: Number.POSITIVE_INFINITY }],
+    ['negative jitter', { jitterRatio: -0.1 }],
+    ['jitter over one', { jitterRatio: 1.1 }],
+    ['non-finite jitter', { jitterRatio: Number.NaN }],
+  ])('rejects %s', async (_description, retryOptions) => {
+    const { executeWithRetry } = await retryApi;
+
+    await expect(
+      executeWithRetry({
+        message: orderMessage(),
+        deadLetterQueue: createInMemoryQueue(),
+        operation: async () => 'processed',
+        ...retryOptions,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_RETRY_OPTIONS' });
+  });
+
+  it.each([-0.1, 1.1, Number.POSITIVE_INFINITY, Number.NaN])(
+    'rejects invalid random output %p while preserving the processing failure',
+    async (randomValue) => {
+      const { executeWithRetry, TransientError } = await retryApi;
+      const deadLetterQueue = createInMemoryQueue();
+      const processingError = new TransientError('inventory service unavailable');
+      const delays = [];
+
+      const failure = await executeWithRetry({
+        message: orderMessage(),
+        deadLetterQueue,
+        operation: async () => {
+          throw processingError;
+        },
+        random: () => randomValue,
+        delay: async (milliseconds) => delays.push(milliseconds),
+      }).catch((error) => error);
+
+      expect(failure).toMatchObject({
+        code: 'RETRY_INFRASTRUCTURE_ERROR',
+        stage: 'RETRY_DELAY',
+        infrastructureError: expect.objectContaining({ code: 'INVALID_RETRY_OPTIONS' }),
+      });
+      expect(failure.processingError).toBe(processingError);
+      expect(delays).toEqual([]);
+      await deadLetterQueue.shutdown();
+    },
+  );
 });
