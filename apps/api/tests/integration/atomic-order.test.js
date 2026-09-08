@@ -19,14 +19,18 @@ const customerId = '33333333-3333-4333-8333-333333333333';
 describe('atomic order creation', () => {
   let pool;
   let orders;
-  let processing;
   let products;
+  let verificationPool;
+  let verificationProcessing;
+  let verificationProducts;
 
   beforeAll(() => {
     pool = createPool({ connectionString: TEST_DATABASE_URL, max: 4 });
+    verificationPool = createPool({ connectionString: TEST_DATABASE_URL, max: 1 });
     orders = createOrderRepository(pool);
-    processing = createOrderProcessingRepository(pool);
     products = createProductRepository(pool);
+    verificationProcessing = createOrderProcessingRepository(verificationPool);
+    verificationProducts = createProductRepository(verificationPool);
   });
 
   beforeEach(async () => {
@@ -39,6 +43,7 @@ describe('atomic order creation', () => {
     await pool.query('DROP TRIGGER IF EXISTS reject_order_processing ON order_processing');
     await pool.query('DROP FUNCTION IF EXISTS reject_order_processing()');
     await pool.end();
+    await verificationPool.end();
   });
 
   async function createProduct(stock = 5) {
@@ -73,8 +78,31 @@ describe('atomic order creation', () => {
       status: 'PENDING',
       version: 1,
     });
-    await expect(products.findById(product.id)).resolves.toMatchObject({ stock: 3, version: 2 });
-    await expect(processing.findByOrderId(orderId)).resolves.toMatchObject({
+    await expect(
+      verificationPool.query(
+        `
+          SELECT id, product_id, quantity, status, version
+          FROM orders
+          WHERE id = $1
+        `,
+        [orderId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          id: orderId,
+          product_id: product.id,
+          quantity: 2,
+          status: 'PENDING',
+          version: 1,
+        },
+      ],
+    });
+    await expect(verificationProducts.findById(product.id)).resolves.toMatchObject({
+      stock: 3,
+      version: 2,
+    });
+    await expect(verificationProcessing.findByOrderId(orderId)).resolves.toMatchObject({
       orderId,
       status: 'PENDING',
     });
