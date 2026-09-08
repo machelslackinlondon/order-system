@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createOrderRepository, createPool, createProductRepository } from '@order-system/database';
+import { createOrderCreatedPublisher } from '@order-system/events';
+import { createInMemoryQueue } from '@order-system/queue';
 
 import { buildApp } from './app.js';
 import { createOrderService } from './create-order.js';
@@ -10,10 +12,12 @@ const host = process.env.API_HOST ?? '127.0.0.1';
 const port = Number.parseInt(process.env.API_PORT ?? '3000', 10);
 
 const pool = createPool({ connectionString });
+const queue = createInMemoryQueue();
 const orderService = createOrderService({
   productRepository: createProductRepository(pool),
   orderRepository: createOrderRepository(pool),
   idGenerator: randomUUID,
+  orderCreatedPublisher: createOrderCreatedPublisher({ queue }),
 });
 const app = buildApp({ orderService, logger: true });
 
@@ -22,6 +26,7 @@ pool.on('error', (error) => {
 });
 
 app.addHook('onClose', async () => {
+  await queue.shutdown();
   await pool.end();
 });
 

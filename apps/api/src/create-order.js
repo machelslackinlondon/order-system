@@ -23,7 +23,14 @@ export function validateOrderInput(input) {
   }
 }
 
-export function createOrderService({ productRepository, orderRepository, idGenerator }) {
+const noOrderCreatedPublisher = { publish: async () => undefined };
+
+export function createOrderService({
+  productRepository,
+  orderRepository,
+  idGenerator,
+  orderCreatedPublisher = noOrderCreatedPublisher,
+}) {
   return {
     async createOrder(input) {
       validateOrderInput(input);
@@ -56,7 +63,12 @@ export function createOrderService({ productRepository, orderRepository, idGener
         version: 1,
       });
 
-      return result.created ? result.order : resolveIdempotentOrder(result, requestFingerprint);
+      if (!result.created) {
+        return resolveIdempotentOrder(result, requestFingerprint);
+      }
+
+      await orderCreatedPublisher.publish(result.order);
+      return result.order;
     },
   };
 }
