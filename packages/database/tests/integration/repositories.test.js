@@ -26,7 +26,7 @@ describe('PostgreSQL order persistence', () => {
   it('creates and finds persisted inventory', async () => {
     const product = {
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     };
@@ -38,7 +38,7 @@ describe('PostgreSQL order persistence', () => {
   it('persists every order field with database timestamps', async () => {
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });
@@ -76,7 +76,7 @@ describe('PostgreSQL order persistence', () => {
   it('enforces positive order quantity', async () => {
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });
@@ -98,7 +98,7 @@ describe('PostgreSQL order persistence', () => {
   it('enforces positive order amount', async () => {
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });
@@ -129,7 +129,7 @@ describe('PostgreSQL order persistence', () => {
 
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });
@@ -151,7 +151,7 @@ describe('PostgreSQL order persistence', () => {
   it('enforces allowed order statuses', async () => {
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });
@@ -188,7 +188,7 @@ describe('PostgreSQL order persistence', () => {
   it('enforces unique order idempotency keys', async () => {
     const product = await products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock: 5,
       version: 1,
     });

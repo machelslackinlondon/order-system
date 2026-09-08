@@ -47,7 +47,7 @@ describe('POST /orders', () => {
   async function createProduct(stock = 5) {
     return products.create({
       id: randomUUID(),
-      name: 'Interview Keyboard',
+      name: 'Mechanical Keyboard',
       stock,
       version: 1,
     });

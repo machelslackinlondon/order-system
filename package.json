@@ -2,7 +2,7 @@
   "name": "order-system",
   "version": "0.1.0",
   "private": true,
-  "description": "Interview laboratory for order processing and distributed systems",
+  "description": "Reference implementation for order processing and distributed systems",
   "type": "module",
   "engines": {
     "node": ">=24"
