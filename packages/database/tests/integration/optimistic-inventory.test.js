@@ -65,6 +65,24 @@ describe('optimistic inventory persistence', () => {
     await expect(products.findById(product.id)).resolves.toEqual(product);
   });
 
+  it.each([0, -1, 1.5])('rejects invalid reservation quantity %s', async (quantity) => {
+    const product = await products.create({
+      id: randomUUID(),
+      name: 'Mechanical Keyboard',
+      stock: 10,
+      version: 1,
+    });
+
+    await expect(
+      products.reserveWithVersion({
+        productId: product.id,
+        quantity,
+        expectedVersion: 1,
+      }),
+    ).rejects.toThrow('quantity must be a positive integer');
+    await expect(products.findById(product.id)).resolves.toEqual(product);
+  });
+
   it('allows only one concurrent reservation for the same version', async () => {
     const product = await products.create({
       id: randomUUID(),

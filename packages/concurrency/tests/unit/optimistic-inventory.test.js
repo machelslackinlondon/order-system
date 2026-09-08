@@ -68,6 +68,44 @@ describe('optimistic inventory reservation', () => {
     });
   });
 
+  it.each([0, -1, 1.5])('rejects invalid reservation quantity %s', async (quantity) => {
+    const productRepository = {
+      async findById() {
+        throw new Error('inventory read must not run');
+      },
+      async reserveWithVersion() {
+        throw new Error('inventory update must not run');
+      },
+    };
+
+    const reserve = concurrency.createOptimisticInventoryReservation({ productRepository });
+
+    await expect(reserve({ productId: PRODUCT_ID, quantity })).rejects.toMatchObject({
+      name: 'InvalidInventoryQuantityError',
+      code: 'INVALID_INVENTORY_QUANTITY',
+      quantity,
+    });
+  });
+
+  it('reports a typed error when inventory does not exist', async () => {
+    const productRepository = {
+      async findById() {
+        return null;
+      },
+      async reserveWithVersion() {
+        throw new Error('inventory update must not run');
+      },
+    };
+
+    const reserve = concurrency.createOptimisticInventoryReservation({ productRepository });
+
+    await expect(reserve({ productId: PRODUCT_ID, quantity: 3 })).rejects.toMatchObject({
+      name: 'InventoryProductNotFoundError',
+      code: 'INVENTORY_PRODUCT_NOT_FOUND',
+      productId: PRODUCT_ID,
+    });
+  });
+
   it('stops after the configured number of conflict retries', async () => {
     let attempts = 0;
     const productRepository = {
@@ -94,5 +132,38 @@ describe('optimistic inventory reservation', () => {
       productId: PRODUCT_ID,
     });
     expect(attempts).toBe(3);
+  });
+
+  it('allows zero retries and makes one reservation attempt', async () => {
+    let attempts = 0;
+    const productRepository = {
+      async findById() {
+        return product();
+      },
+      async reserveWithVersion() {
+        attempts += 1;
+        return null;
+      },
+    };
+
+    const reserve = concurrency.createOptimisticInventoryReservation({
+      productRepository,
+      maxRetries: 0,
+    });
+
+    await expect(reserve({ productId: PRODUCT_ID, quantity: 3 })).rejects.toMatchObject({
+      name: 'OptimisticRetriesExhaustedError',
+      attempts: 1,
+    });
+    expect(attempts).toBe(1);
+  });
+
+  it.each([-1, 1.5, Number.NaN, '2'])('rejects invalid maxRetries value %s', (maxRetries) => {
+    expect(() =>
+      concurrency.createOptimisticInventoryReservation({
+        productRepository: {},
+        maxRetries,
+      }),
+    ).toThrow('maxRetries must be a non-negative integer');
   });
 });
