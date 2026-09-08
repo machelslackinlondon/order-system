@@ -98,5 +98,6 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 - The stock check is advisory and inventory is not decremented.
 - The caller supplies `amount` because product pricing is not modeled yet.
 - The queue is process-local and volatile; durable delivery arrives in a later phase.
+- Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
 - Workers, delivery retries, payments, and Redis behavior arrive in later phases.
 - PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.

@@ -6,6 +6,14 @@ export class QueueShutdownError extends Error {
   }
 }
 
+export class InvalidQueueMessageError extends Error {
+  constructor() {
+    super('Queue message must be an object');
+    this.name = 'InvalidQueueMessageError';
+    this.code = 'INVALID_QUEUE_MESSAGE';
+  }
+}
+
 export function createInMemoryQueue() {
   const messages = [];
   let acceptingWork = true;
@@ -46,6 +54,10 @@ export function createInMemoryQueue() {
     async publish(message) {
       if (!acceptingWork) {
         throw new QueueShutdownError();
+      }
+
+      if (!message || typeof message !== 'object' || Array.isArray(message)) {
+        throw new InvalidQueueMessageError();
       }
 
       messages.push(message);

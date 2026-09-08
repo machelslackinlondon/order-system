@@ -18,7 +18,7 @@ Order service ----> Product repository ----> PostgreSQL products
 
 Fastify validates the HTTP body and `Idempotency-Key`. The order service first resolves a matching retry, then checks that the product exists and current stock covers a new request. The database uniqueness constraint selects one winner when identical requests arrive concurrently.
 
-The winning request publishes one `ORDER_CREATED` message after persistence. Matching sequential or concurrent retries return the committed order without publishing another message.
+On the normal path, the winning request publishes one `ORDER_CREATED` message after persistence. Matching sequential or concurrent retries return the committed order without publishing another message. Database persistence and local publication are not atomic; the queue guidance records this failure window.
 
 The HTTP path reads stock but does not reserve or decrement it. Transaction and locking behavior is demonstrated separately, while queued worker processing remains a later step. A `201` response means the request is currently eligible for processing, not that fulfillment is guaranteed.
 

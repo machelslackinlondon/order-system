@@ -24,3 +24,8 @@ is suitable for local development and deterministic tests rather than durable pr
 The `publish`, `consume`, and `shutdown` boundary keeps producers independent of the storage
 mechanism. A durable adapter can implement the same behavior later without changing order-event
 construction.
+
+Order persistence and local publication are separate operations. If publication fails after the
+database commit, the matching retry returns the order without republishing it. This phase therefore
+provides best-effort publication, not atomic delivery; a durable transactional outbox is needed to
+close that failure window.
