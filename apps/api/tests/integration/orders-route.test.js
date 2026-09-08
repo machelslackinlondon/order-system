@@ -1,13 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   createOrderRepository,
   createPool,
@@ -99,7 +91,9 @@ describe('POST /orders', () => {
     expect(new Date(body.createdAt).toISOString()).toBe(body.createdAt);
     expect(new Date(body.updatedAt).toISOString()).toBe(body.updatedAt);
     await expect(products.findById(product.id)).resolves.toMatchObject({ stock: 5 });
-    await expect(pool.query('SELECT count(*)::integer AS count FROM orders')).resolves.toMatchObject({
+    await expect(
+      pool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({
       rows: [{ count: 1 }],
     });
   });
@@ -162,13 +156,11 @@ describe('POST /orders', () => {
   it('returns 503 without leaking database details', async () => {
     const unavailableApp = buildApp({
       orderService: {
-        createOrder: jest
-          .fn()
-          .mockRejectedValue(
-            new DatabaseUnavailableError({
-              cause: new Error('password=secret connection refused'),
-            }),
-          ),
+        createOrder: jest.fn().mockRejectedValue(
+          new DatabaseUnavailableError({
+            cause: new Error('password=secret connection refused'),
+          }),
+        ),
       },
     });
 

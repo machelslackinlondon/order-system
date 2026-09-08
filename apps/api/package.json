@@ -5,7 +5,8 @@
   "type": "module",
   "exports": "./src/index.js",
   "scripts": {
-    "build": "node --check src/index.js && node --check src/create-order.js && node --check src/order-errors.js"
+    "start": "node --env-file-if-exists=../../.env src/server.js",
+    "build": "node --check src/index.js && node --check src/app.js && node --check src/create-order.js && node --check src/order-errors.js && node --check src/order-schema.js && node --check src/orders-route.js && node --check src/server.js"
   },
   "dependencies": {
     "@distributed-order-system/database": "^0.1.0",
