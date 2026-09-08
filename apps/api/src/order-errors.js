@@ -33,3 +33,12 @@ export class InsufficientInventoryError extends OrderApplicationError {
     });
   }
 }
+
+export class IdempotencyKeyReusedError extends OrderApplicationError {
+  constructor() {
+    super('Idempotency key already used for a different request', {
+      code: 'IDEMPOTENCY_KEY_REUSED',
+      statusCode: 409,
+    });
+  }
+}

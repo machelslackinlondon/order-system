@@ -5,7 +5,7 @@
   "type": "module",
   "exports": "./src/index.js",
   "scripts": {
-    "build": "node --check src/index.js && node --check src/errors.js && node --check src/mappers.js && node --check src/migrate.js && node --check src/order-processing-repository.js && node --check src/order-repository.js && node --check src/pool.js && node --check src/product-repository.js && node --check src/query.js && node --check src/transaction.js && node --check scripts/migrate.js && node --check migrations/202609080001_create_order_tables.js && node --check migrations/202609080002_create_order_processing.js"
+    "build": "node --check src/index.js && node --check src/errors.js && node --check src/mappers.js && node --check src/migrate.js && node --check src/order-processing-repository.js && node --check src/order-repository.js && node --check src/pool.js && node --check src/product-repository.js && node --check src/query.js && node --check src/transaction.js && node --check scripts/migrate.js && node --check migrations/202609080001_create_order_tables.js && node --check migrations/202609080002_create_order_processing.js && node --check migrations/202609080003_add_order_idempotency.js"
   },
   "dependencies": {
     "node-pg-migrate": "^9.0.0",

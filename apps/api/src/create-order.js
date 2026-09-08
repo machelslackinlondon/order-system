@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import {
+  IdempotencyKeyReusedError,
   InsufficientInventoryError,
   OrderValidationError,
   ProductNotFoundError,
@@ -22,10 +25,35 @@ export function validateOrderInput(input) {
   }
 }
 
+function fingerprintOrderRequest(input) {
+  const canonicalRequest = JSON.stringify([
+    input.customerId,
+    input.productId,
+    input.quantity,
+    input.amount,
+  ]);
+
+  return createHash('sha256').update(canonicalRequest).digest('hex');
+}
+
+function replayOrder(record, requestFingerprint) {
+  if (record.requestFingerprint !== requestFingerprint) {
+    throw new IdempotencyKeyReusedError();
+  }
+
+  return record.order;
+}
+
 export function createOrderService({ productRepository, orderRepository, idGenerator }) {
   return {
     async createOrder(input) {
       validateOrderInput(input);
+      const requestFingerprint = fingerprintOrderRequest(input);
+      const existing = await orderRepository.findByIdempotencyKey(input.idempotencyKey);
+
+      if (existing) {
+        return replayOrder(existing, requestFingerprint);
+      }
 
       const product = await productRepository.findById(input.productId);
 
@@ -37,7 +65,7 @@ export function createOrderService({ productRepository, orderRepository, idGener
         throw new InsufficientInventoryError();
       }
 
-      return orderRepository.create({
+      const result = await orderRepository.createIdempotent({
         id: idGenerator(),
         customerId: input.customerId,
         productId: input.productId,
@@ -45,8 +73,11 @@ export function createOrderService({ productRepository, orderRepository, idGener
         amount: input.amount,
         status: 'PENDING',
         idempotencyKey: input.idempotencyKey,
+        requestFingerprint,
         version: 1,
       });
+
+      return result.created ? result.order : replayOrder(result, requestFingerprint);
     },
   };
 }
