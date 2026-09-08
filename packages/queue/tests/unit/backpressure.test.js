@@ -97,6 +97,40 @@ describe('in-memory queue backpressure', () => {
     await consuming;
   });
 
+  it('keeps a waiting producer blocked until a failed message is later acknowledged', async () => {
+    const queue = createInMemoryQueue({ capacity: 1, overflowStrategy: 'wait' });
+    await queue.publish(message('message-1'));
+    let secondAdmitted = false;
+    const secondPublished = queue.publish(message('message-2')).then(() => {
+      secondAdmitted = true;
+    });
+    const processingError = new Error('processing failed');
+
+    await expect(
+      queue.consume(async () => {
+        throw processingError;
+      }),
+    ).rejects.toBe(processingError);
+
+    expect(secondAdmitted).toBe(false);
+    expect(queue.getMetrics()).toMatchObject({ queueDepth: 1, waitingPublishers: 1 });
+
+    const attempts = [];
+    const secondHandled = deferred();
+    const consuming = queue.consume(async (acceptedMessage) => {
+      attempts.push(acceptedMessage.messageId);
+      if (acceptedMessage.messageId === 'message-2') {
+        secondHandled.resolve();
+      }
+    });
+    await secondPublished;
+    await secondHandled.promise;
+
+    expect(attempts).toEqual(['message-1', 'message-2']);
+    await queue.shutdown();
+    await consuming;
+  });
+
   it('admits waiting producers in first-in-first-out order', async () => {
     const queue = createInMemoryQueue({ capacity: 1, overflowStrategy: 'wait' });
     const admissions = [];
@@ -137,5 +171,19 @@ describe('in-memory queue backpressure', () => {
       },
     ]);
     expect(queue.getMetrics()).toMatchObject({ waitingPublishers: 0 });
+  });
+
+  it('does not start queued work after shutdown begins', async () => {
+    const queue = createInMemoryQueue({ capacity: 1 });
+    await queue.publish(message('message-1'));
+    const handled = [];
+
+    const consuming = queue.consume(async (acceptedMessage) => {
+      handled.push(acceptedMessage.messageId);
+    });
+    await queue.shutdown();
+    await consuming;
+
+    expect(handled).toEqual([]);
   });
 });
