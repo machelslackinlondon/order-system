@@ -1,6 +1,6 @@
 # Commit map
 
-This map connects interview topics to their red tests, green implementations, documentation, and main files.
+This map connects system topics to their red tests, green implementations, documentation, and main files.
 
 | Topic                   | Test commit                                                                                                    | Implementation/final commit                                                                                              | Main files                                                               | Concepts                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |

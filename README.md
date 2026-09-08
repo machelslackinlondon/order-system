@@ -1,6 +1,6 @@
 # Distributed Order System
 
-A compact interview laboratory for learning order processing, concurrency, messaging, failure handling, database consistency, AWS architecture, observability, and disciplined test-driven delivery.
+A compact reference implementation and practical guide to order processing, concurrency, messaging, failure handling, database consistency, AWS architecture, observability, and disciplined test-driven delivery.
 
 Repository: <https://github.com/machelslackinlondon/distributed-order-system>
 
@@ -35,7 +35,7 @@ npm install
 docker compose up -d postgres
 npm run db:migrate
 docker compose exec -T postgres psql -U orders -d orders -c \
-  "INSERT INTO products (id, name, stock, version) VALUES ('0f2a6064-9daa-4947-a739-b8825e2b8146', 'Interview Keyboard', 5, 1) ON CONFLICT (id) DO NOTHING"
+  "INSERT INTO products (id, name, stock, version) VALUES ('0f2a6064-9daa-4947-a739-b8825e2b8146', 'Mechanical Keyboard', 5, 1) ON CONFLICT (id) DO NOTHING"
 npm run start:api
 ```
 
@@ -45,7 +45,7 @@ In a second terminal, create an order:
 curl --fail-with-body \
   --request POST http://127.0.0.1:3000/orders \
   --header 'Content-Type: application/json' \
-  --header 'Idempotency-Key: interview-request-123' \
+  --header 'Idempotency-Key: order-request-123' \
   --data '{
     "customerId": "0fd846a4-728b-4b67-919c-53ecfef632ae",
     "productId": "0f2a6064-9daa-4947-a739-b8825e2b8146",
