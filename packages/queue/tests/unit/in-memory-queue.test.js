@@ -14,6 +14,16 @@ function deferred() {
 }
 
 describe('in-memory queue', () => {
+  it.each([null, undefined])('rejects invalid message %p', async (message) => {
+    const queue = createInMemoryQueue();
+
+    await expect(queue.publish(message)).rejects.toMatchObject({
+      code: 'INVALID_QUEUE_MESSAGE',
+    });
+
+    await queue.shutdown();
+  });
+
   it('delivers a message published after consumption starts', async () => {
     const queue = createInMemoryQueue();
     const delivered = deferred();

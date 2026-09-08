@@ -16,11 +16,29 @@ import {
 
 const customerId = '33333333-3333-4333-8333-333333333333';
 
+function createBarrier(parties) {
+  let arrivals = 0;
+  let release;
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  return async () => {
+    arrivals += 1;
+    if (arrivals === parties) {
+      release();
+    }
+    await released;
+  };
+}
+
 describe('POST /orders', () => {
   let app;
   let orders;
   let pool;
   let products;
+  let publishedOrders;
+  let waitForInitialLookups;
 
   beforeAll(async () => {
     pool = createPool({ connectionString: TEST_DATABASE_URL, max: 4 });
@@ -28,14 +46,30 @@ describe('POST /orders', () => {
     orders = createOrderRepository(pool);
     const orderService = createOrderService({
       productRepository: products,
-      orderRepository: orders,
+      orderRepository: {
+        async findByIdempotencyKey(idempotencyKey) {
+          const result = await orders.findByIdempotencyKey(idempotencyKey);
+          if (waitForInitialLookups) {
+            await waitForInitialLookups();
+          }
+          return result;
+        },
+        createIdempotent: (order) => orders.createIdempotent(order),
+      },
       idGenerator: randomUUID,
+      orderCreatedPublisher: {
+        async publish(order) {
+          publishedOrders.push(order);
+        },
+      },
     });
     app = buildApp({ orderService });
     await app.ready();
   });
 
   beforeEach(async () => {
+    publishedOrders = [];
+    waitForInitialLookups = null;
     await resetDatabase(pool);
   });
 
@@ -98,6 +132,7 @@ describe('POST /orders', () => {
     ).resolves.toMatchObject({
       rows: [{ count: 1 }],
     });
+    expect(publishedOrders.map(({ id }) => id)).toEqual([body.id]);
   });
 
   it('returns the committed order when a client retries after losing the first response', async () => {
@@ -119,6 +154,7 @@ describe('POST /orders', () => {
     await expect(
       pool.query('SELECT count(*)::integer AS count FROM orders'),
     ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+    expect(publishedOrders.map(({ id }) => id)).toEqual([committed.rows[0].id]);
   });
 
   it('returns a matching order created before request fingerprints were stored', async () => {
@@ -186,6 +222,7 @@ describe('POST /orders', () => {
 
   it('creates one order when identical requests arrive simultaneously', async () => {
     const product = await createProduct();
+    waitForInitialLookups = createBarrier(3);
 
     const responses = await Promise.all([
       app.inject(requestFor(product.id)),
@@ -198,6 +235,7 @@ describe('POST /orders', () => {
     await expect(
       pool.query('SELECT count(*)::integer AS count FROM orders'),
     ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+    expect(publishedOrders.map(({ id }) => id)).toEqual([responses[0].json().id]);
   });
 
   it.each([
