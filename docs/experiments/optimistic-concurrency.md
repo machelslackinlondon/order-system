@@ -3,6 +3,8 @@
 Run the focused examples with:
 
 ```bash
+docker compose up -d --wait postgres
+npm run db:migrate:test
 npm run test:integration -- packages/database/tests/integration/optimistic-inventory.test.js
 npm run test:unit -- packages/concurrency/tests/unit/optimistic-inventory.test.js
 ```
