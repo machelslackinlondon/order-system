@@ -122,11 +122,18 @@ describe('POST /orders', () => {
   });
 
   it('returns a matching order created before request fingerprints were stored', async () => {
-    const product = await createProduct();
+    const uppercaseCustomerId = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA';
+    const uppercaseProductId = 'BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB';
+    await products.create({
+      id: uppercaseProductId,
+      name: 'Mechanical Keyboard',
+      stock: 5,
+      version: 1,
+    });
     const legacyOrder = await orders.create({
       id: randomUUID(),
-      customerId,
-      productId: product.id,
+      customerId: uppercaseCustomerId,
+      productId: uppercaseProductId,
       quantity: 2,
       amount: 2598,
       status: 'PENDING',
@@ -134,7 +141,16 @@ describe('POST /orders', () => {
       idempotencyKey: 'request-123',
     });
 
-    const response = await app.inject(requestFor(product.id));
+    const response = await app.inject(
+      requestFor(uppercaseProductId, {
+        payload: {
+          customerId: uppercaseCustomerId,
+          productId: uppercaseProductId,
+          quantity: 2,
+          amount: 2598,
+        },
+      }),
+    );
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ id: legacyOrder.id });

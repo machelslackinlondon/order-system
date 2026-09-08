@@ -109,7 +109,7 @@ describe('atomic order creation', () => {
   });
 
   it('reserves inventory once when identical atomic requests run concurrently', async () => {
-    const product = await createProduct(5);
+    const product = await createProduct(2);
     const input = orderInput(product.id, { idempotencyKey: 'atomic-retry' });
     const service = createAtomicOrderService({ pool, idGenerator: randomUUID });
 
@@ -117,7 +117,7 @@ describe('atomic order creation', () => {
 
     expect(new Set(results.map(({ id }) => id))).toHaveProperty('size', 1);
     await expect(verificationProducts.findById(product.id)).resolves.toMatchObject({
-      stock: 3,
+      stock: 0,
       version: 2,
     });
     await expect(
