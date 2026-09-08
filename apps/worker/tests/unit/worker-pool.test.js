@@ -100,6 +100,33 @@ describe('worker pool', () => {
     await pool.shutdown();
   });
 
+  it('drains a large backlog of synchronous handler failures without recursive dispatch', async () => {
+    const releaseFirst = deferred();
+    const processingError = new Error('processing failed');
+    const pool = createWorkerPool({
+      concurrency: 1,
+      handler(job) {
+        if (job === 'first') {
+          return releaseFirst.promise;
+        }
+        throw processingError;
+      },
+    });
+    const first = pool.submit('first');
+    const failures = Array.from({ length: 20_000 }, (_, index) => pool.submit(index));
+    const settled = Promise.allSettled([first, ...failures]);
+
+    releaseFirst.resolve();
+
+    const outcomes = await settled;
+    expect(outcomes[0]).toEqual({ status: 'fulfilled', value: undefined });
+    expect(outcomes.slice(1)).toEqual(
+      Array.from({ length: 20_000 }, () => ({ status: 'rejected', reason: processingError })),
+    );
+    expect(pool.getMetrics()).toMatchObject({ completedJobs: 20_001, failedJobs: 20_000 });
+    await pool.shutdown();
+  });
+
   it('drains accepted jobs before completing graceful shutdown', async () => {
     const firstStarted = deferred();
     const releaseFirst = deferred();
