@@ -5,4 +5,5 @@ export default {
   restoreMocks: true,
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
+  transform: {},
 };
