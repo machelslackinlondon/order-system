@@ -187,6 +187,76 @@ describe('POST /orders', () => {
     });
   });
 
+  it('returns 400 for malformed JSON', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': 'request-123',
+      },
+      payload: '{',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
+  it('returns 400 for an empty JSON body', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': 'request-123',
+      },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
+  it('returns 400 when Content-Type is missing', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: { 'idempotency-key': 'request-123' },
+      payload: JSON.stringify({
+        customerId,
+        productId: randomUUID(),
+        quantity: 2,
+        amount: 2598,
+      }),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
+  it('returns 400 for an unsupported Content-Type', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: {
+        'content-type': 'application/xml',
+        'idempotency-key': 'request-123',
+      },
+      payload: '<order />',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request' },
+    });
+  });
+
   it('returns 404 for an unknown product', async () => {
     const response = await app.inject(requestFor(randomUUID()));
 
