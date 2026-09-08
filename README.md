@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/distributed-order-system>
 
 ## Current status
 
-Phase 0 provides the JavaScript/Jest monorepo tooling and local PostgreSQL/Redis infrastructure. Order behavior begins in Phase 1; the current repository does not yet expose an API or process orders.
+Phase 1 exposes `POST /orders`. It validates the request and current PostgreSQL stock, then persists a `PENDING` order. This is an advisory stock check only: inventory is not reserved or decremented until a later worker phase.
 
 ## Architecture direction
 
@@ -31,9 +31,30 @@ The repository deliberately uses a small number of well-defined modules rather t
 git clone https://github.com/machelslackinlondon/distributed-order-system.git
 cd distributed-order-system
 cp .env.example .env
-docker compose up -d
 npm install
+docker compose up -d postgres
+npm run db:migrate
+docker compose exec -T postgres psql -U orders -d orders -c \
+  "INSERT INTO products (id, name, stock, version) VALUES ('0f2a6064-9daa-4947-a739-b8825e2b8146', 'Interview Keyboard', 5, 1) ON CONFLICT (id) DO NOTHING"
+npm run start:api
 ```
+
+In a second terminal, create an order:
+
+```bash
+curl --fail-with-body \
+  --request POST http://127.0.0.1:3000/orders \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: interview-request-123' \
+  --data '{
+    "customerId": "0fd846a4-728b-4b67-919c-53ecfef632ae",
+    "productId": "0f2a6064-9daa-4947-a739-b8825e2b8146",
+    "quantity": 2,
+    "amount": 2598
+  }'
+```
+
+`amount` is supplied in minor currency units. A successful `201` response means the order was accepted as `PENDING`; it does not reserve stock or guarantee fulfillment.
 
 ## Quality commands
 
@@ -44,7 +65,7 @@ npm run format:check
 npm run build
 ```
 
-Phase 0 has no behavioral production code, so Jest is configured to report success when no tests exist. Behavior introduced in later phases must arrive through failing tests first.
+`npm test` runs unit tests followed by serial integration tests against the `orders_test` PostgreSQL database. Start PostgreSQL first with `docker compose up -d postgres`.
 
 ## Workspaces
 
@@ -72,9 +93,10 @@ git log --oneline --decorate --graph
 
 See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for the workflow and [`docs/development/commit-map.md`](docs/development/commit-map.md) for concept-to-commit navigation.
 
-## Known Phase 0 limitations
+## Known Phase 1 limitations
 
-- No order domain or HTTP endpoint exists yet.
-- PostgreSQL and Redis are local development dependencies only.
-- Queueing, workers, retries, deduplication, and observability arrive incrementally.
-- AWS architecture will be defined but never deployed automatically.
+- The stock check is advisory and inventory is not decremented.
+- The caller supplies `amount` because product pricing is not modeled yet.
+- `Idempotency-Key` is stored but not enforced as unique.
+- Queueing, workers, retries, payments, concurrency control, and Redis behavior arrive in later phases.
+- PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.
