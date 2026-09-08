@@ -27,6 +27,37 @@ export function createProductRepository(queryable) {
       return result.rowCount === 0 ? null : mapProduct(result.rows[0]);
     },
 
+    async findByIdForUpdate(id) {
+      const result = await runQuery(
+        queryable,
+        'SELECT id, name, stock, version FROM products WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+
+      return result.rowCount === 0 ? null : mapProduct(result.rows[0]);
+    },
+
+    async reserveLocked({ productId, quantity }) {
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new RangeError('quantity must be a positive integer');
+      }
+
+      const result = await runQuery(
+        queryable,
+        `
+          UPDATE products
+          SET stock = stock - $2,
+              version = version + 1
+          WHERE id = $1
+            AND stock >= $2
+          RETURNING id, name, stock, version
+        `,
+        [productId, quantity],
+      );
+
+      return result.rowCount === 0 ? null : mapProduct(result.rows[0]);
+    },
+
     async reserveWithVersion({ productId, quantity, expectedVersion }) {
       if (!Number.isInteger(quantity) || quantity <= 0) {
         throw new RangeError('quantity must be a positive integer');

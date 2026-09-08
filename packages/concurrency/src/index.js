@@ -1,3 +1,5 @@
+import { createProductRepository, withTransaction } from '@order-system/database';
+
 /**
  * Deliberately unsafe read-then-write reservation for the race-condition
  * experiment. Do not use this implementation in the order-processing path.
@@ -86,5 +88,34 @@ export function createOptimisticInventoryReservation({ productRepository, maxRet
     }
 
     throw new OptimisticRetriesExhaustedError(productId, maxAttempts);
+  };
+}
+
+export function createPessimisticInventoryReservation({ pool }) {
+  return async function reserve({ productId, quantity }) {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new InvalidInventoryQuantityError(quantity);
+    }
+
+    return withTransaction(pool, async (client) => {
+      const productRepository = createProductRepository(client);
+      const product = await productRepository.findByIdForUpdate(productId);
+
+      if (!product) {
+        throw new InventoryProductNotFoundError(productId);
+      }
+
+      if (product.stock < quantity) {
+        throw new InsufficientInventoryError(productId);
+      }
+
+      const reserved = await productRepository.reserveLocked({ productId, quantity });
+
+      if (!reserved) {
+        throw new InsufficientInventoryError(productId);
+      }
+
+      return reserved;
+    });
   };
 }
