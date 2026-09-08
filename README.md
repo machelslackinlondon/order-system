@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-Phase 1 exposes `POST /orders`. It validates the request and current PostgreSQL stock, then persists a `PENDING` order. This is an advisory stock check only: inventory is not reserved or decremented until a later worker phase.
+`POST /orders` validates the request and current PostgreSQL stock, then persists a retry-safe `PENDING` order. Reusing an `Idempotency-Key` with the same payload returns the original order; using it with a different payload returns `409`. The stock check remains advisory until a later worker phase.
 
 ## Architecture direction
 
@@ -93,10 +93,9 @@ git log --oneline --decorate --graph
 
 See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for the workflow and [`docs/development/commit-map.md`](docs/development/commit-map.md) for concept-to-commit navigation.
 
-## Known Phase 1 limitations
+## Known limitations
 
 - The stock check is advisory and inventory is not decremented.
 - The caller supplies `amount` because product pricing is not modeled yet.
-- `Idempotency-Key` is stored but not enforced as unique.
-- Queueing, workers, retries, payments, concurrency control, and Redis behavior arrive in later phases.
+- Queueing, workers, delivery retries, payments, and Redis behavior arrive in later phases.
 - PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.

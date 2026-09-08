@@ -2,9 +2,9 @@
 
 ## Schema
 
-`products` stores UUID identity, name, non-negative integer stock, and a positive version. `orders` stores UUID order and customer identity, a product foreign key, positive integer quantity and amount, status, version, the caller's idempotency key, and database-generated `timestamptz` timestamps.
+`products` stores UUID identity, name, non-negative integer stock, and a positive version. `orders` stores UUID order and customer identity, a product foreign key, positive integer quantity and amount, status, version, a unique idempotency key, an HTTP request fingerprint, and database-generated `timestamptz` timestamps.
 
-`amount` uses minor currency units to avoid floating-point rounding. Phase 1 accepts it from the caller because product pricing is not modeled. The idempotency key is deliberately not unique until the later idempotency phase.
+`amount` uses minor currency units to avoid floating-point rounding. The API accepts it from the caller because product pricing is not modeled.
 
 Database checks protect non-negative stock, positive quantities and amounts, allowed statuses, and positive versions even when a caller bypasses the application service.
 
@@ -22,6 +22,6 @@ The test database is a separate `orders_test` database in the same local contain
 
 ## Scaling and consistency limits
 
-The Phase 1 stock read and order insert are separate operations. Concurrent requests can all observe the same stock, and accepted orders can exceed fulfillable inventory. Later phases introduce transaction boundaries, locking or optimistic checks, queue publication, and worker-owned reservation.
+The production stock read and order insert remain separate operations. Concurrent requests for different idempotency keys can all observe the same stock, and accepted orders can exceed fulfillable inventory. The transaction and locking experiments demonstrate safe reservation strategies; the later worker phase will select and apply one to the processing flow.
 
-The single PostgreSQL instance and local process are sufficient for this learning slice. Before horizontal scale, the system also needs enforced idempotency, safe publication, retry policy, observability, and explicit reconciliation.
+The single PostgreSQL instance and local process are sufficient for this slice. Before horizontal scale, the system also needs safe publication, retry policy, observability, and explicit reconciliation.

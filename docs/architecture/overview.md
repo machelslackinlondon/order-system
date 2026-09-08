@@ -14,7 +14,7 @@ Order service ----> Product repository ----> PostgreSQL products
     +-------------> Order repository ------> PostgreSQL orders
 ```
 
-Fastify validates the HTTP body and `Idempotency-Key`. The order service checks that the product exists and that current stock covers the requested quantity. It then writes a `PENDING` order through the database package.
+Fastify validates the HTTP body and `Idempotency-Key`. The order service first resolves a matching retry, then checks that the product exists and current stock covers a new request. The database uniqueness constraint selects one winner when identical requests arrive concurrently.
 
 The API reads stock but does not reserve or decrement it. This keeps Phase 1 intentionally simple and leaves a visible race for the later transaction, locking, queue, and worker phases. A `201` response means the request is currently eligible for processing, not that fulfillment is guaranteed.
 
