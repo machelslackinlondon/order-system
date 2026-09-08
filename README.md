@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. A configurable local worker pool is available for bounded concurrent processing, while queue-to-pool wiring remains separate.
+`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports bounded capacity, producer rejection or waiting, and depth metrics. A configurable worker pool provides bounded concurrent processing, while queue-to-pool wiring remains separate.
 
 ## Architecture direction
 
@@ -72,7 +72,7 @@ npm run build
 - `apps/api`: HTTP API boundary
 - `apps/worker`: configurable asynchronous worker pool
 - `packages/database`: persistence and migrations
-- `packages/queue`: local FIFO queue and delivery contract
+- `packages/queue`: local FIFO queue, delivery contract, and backpressure
 - `packages/events`: event contracts and publishing
 - `packages/concurrency`: explicit concurrency experiments
 - `packages/observability`: logs, metrics, and tracing

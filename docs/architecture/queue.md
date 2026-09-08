@@ -17,6 +17,10 @@ The in-memory queue has one active consumer and delivers messages in first-in-fi
 A message is acknowledged only after its handler resolves. If the handler rejects, consumption
 stops and that message remains at the head of the queue for the next consumer.
 
+An optional positive `capacity` bounds unacknowledged messages. Full queues either reject new
+messages or pause publishers until capacity is available. Queue metrics expose depth and waiting
+publishers; see the backpressure guidance for choosing a policy.
+
 Shutdown rejects new publications, stops starting queued work, and waits for an in-flight handler
 to finish. Pending messages are process-local and are lost when the process exits, so this adapter
 is suitable for local development and deterministic tests rather than durable production delivery.
