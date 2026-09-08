@@ -87,6 +87,19 @@ describe('worker pool', () => {
     await pool.shutdown();
   });
 
+  it('preserves a falsy handler rejection', async () => {
+    const pool = createWorkerPool({
+      concurrency: 1,
+      handler: async () => Promise.reject(undefined),
+    });
+
+    await expect(Promise.allSettled([pool.submit('job')])).resolves.toEqual([
+      { status: 'rejected', reason: undefined },
+    ]);
+    expect(pool.getMetrics()).toMatchObject({ successfulJobs: 0, failedJobs: 1 });
+    await pool.shutdown();
+  });
+
   it('drains accepted jobs before completing graceful shutdown', async () => {
     const firstStarted = deferred();
     const releaseFirst = deferred();
