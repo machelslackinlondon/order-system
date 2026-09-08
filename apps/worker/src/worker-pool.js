@@ -63,6 +63,7 @@ export function createWorkerPool({
   async function processJob(entry) {
     const jobStartedAt = now();
     let failure;
+    let jobFailed = false;
     let result;
 
     try {
@@ -70,6 +71,7 @@ export function createWorkerPool({
       successfulJobs += 1;
     } catch (error) {
       failure = error;
+      jobFailed = true;
       failedJobs += 1;
     } finally {
       totalProcessingTimeMs += Math.max(0, now() - jobStartedAt);
@@ -78,7 +80,7 @@ export function createWorkerPool({
       completeShutdownWhenIdle();
     }
 
-    if (failure) {
+    if (jobFailed) {
       entry.reject(failure);
     } else {
       entry.resolve(result);
