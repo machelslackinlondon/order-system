@@ -1,5 +1,19 @@
 import { DatabaseUnavailableError, isDatabaseUnavailable } from './errors.js';
 
+const ISOLATION_LEVELS = new Set(['READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE']);
+
+function beginCommand(isolationLevel) {
+  if (isolationLevel === undefined) {
+    return 'BEGIN';
+  }
+
+  if (!ISOLATION_LEVELS.has(isolationLevel)) {
+    throw new RangeError(`Unsupported transaction isolation level: ${isolationLevel}`);
+  }
+
+  return `BEGIN ISOLATION LEVEL ${isolationLevel}`;
+}
+
 function translateAvailabilityError(error) {
   if (error instanceof DatabaseUnavailableError) {
     return error;
@@ -16,7 +30,8 @@ function connectionFailure(error) {
   return isDatabaseUnavailable(error) ? error : undefined;
 }
 
-export async function withTransaction(pool, operation) {
+export async function withTransaction(pool, operation, { isolationLevel } = {}) {
+  const begin = beginCommand(isolationLevel);
   let client;
 
   try {
@@ -29,7 +44,7 @@ export async function withTransaction(pool, operation) {
 
   try {
     try {
-      await client.query('BEGIN');
+      await client.query(begin);
     } catch (error) {
       discardError = connectionFailure(error);
       throw translateAvailabilityError(error);
