@@ -185,7 +185,7 @@ describe('PostgreSQL order persistence', () => {
     ).rejects.toMatchObject({ code: '23503' });
   });
 
-  it('allows duplicate idempotency keys before the idempotency phase', async () => {
+  it('enforces unique order idempotency keys', async () => {
     const product = await products.create({
       id: randomUUID(),
       name: 'Interview Keyboard',
@@ -199,10 +199,12 @@ describe('PostgreSQL order persistence', () => {
       amount: 1299,
       status: 'PENDING',
       version: 1,
-      idempotencyKey: 'not-unique-yet',
+      idempotencyKey: 'unique-request',
     };
 
     await expect(orders.create({ ...common, id: randomUUID() })).resolves.toBeDefined();
-    await expect(orders.create({ ...common, id: randomUUID() })).resolves.toBeDefined();
+    await expect(orders.create({ ...common, id: randomUUID() })).rejects.toMatchObject({
+      code: '23505',
+    });
   });
 });

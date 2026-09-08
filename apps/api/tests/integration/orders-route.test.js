@@ -98,6 +98,76 @@ describe('POST /orders', () => {
     });
   });
 
+  it('returns the committed order when a client retries after losing the first response', async () => {
+    const product = await createProduct();
+    await app.inject(requestFor(product.id));
+    const committed = await pool.query(
+      'SELECT id, created_at, updated_at FROM orders WHERE idempotency_key = $1',
+      ['request-123'],
+    );
+
+    const retry = await app.inject(requestFor(product.id));
+
+    expect(retry.statusCode).toBe(201);
+    expect(retry.json()).toMatchObject({
+      id: committed.rows[0].id,
+      createdAt: committed.rows[0].created_at.toISOString(),
+      updatedAt: committed.rows[0].updated_at.toISOString(),
+    });
+    await expect(
+      pool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it('creates one order when identical requests arrive simultaneously', async () => {
+    const product = await createProduct();
+
+    const responses = await Promise.all([
+      app.inject(requestFor(product.id)),
+      app.inject(requestFor(product.id)),
+      app.inject(requestFor(product.id)),
+    ]);
+
+    expect(responses.map(({ statusCode }) => statusCode)).toEqual([201, 201, 201]);
+    expect(new Set(responses.map((response) => response.json().id))).toHaveProperty('size', 1);
+    await expect(
+      pool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it.each([
+    ['customerId', randomUUID()],
+    ['productId', randomUUID()],
+    ['quantity', 3],
+    ['amount', 3897],
+  ])('returns 409 when a key is reused with a different %s', async (field, value) => {
+    const product = await createProduct();
+    await app.inject(requestFor(product.id));
+
+    const response = await app.inject(
+      requestFor(product.id, {
+        payload: {
+          customerId,
+          productId: product.id,
+          quantity: 2,
+          amount: 2598,
+          [field]: value,
+        },
+      }),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'IDEMPOTENCY_KEY_REUSED',
+        message: 'Idempotency key already used for a different request',
+      },
+    });
+    await expect(
+      pool.query('SELECT count(*)::integer AS count FROM orders'),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
   it('returns 400 for an invalid body', async () => {
     const product = await createProduct();
     const response = await app.inject(

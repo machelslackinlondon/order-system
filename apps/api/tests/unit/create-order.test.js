@@ -5,6 +5,7 @@ const productId = '11111111-1111-4111-8111-111111111111';
 const orderId = '22222222-2222-4222-8222-222222222222';
 const customerId = '33333333-3333-4333-8333-333333333333';
 const createdAt = new Date('2026-09-08T12:00:00.000Z');
+const requestFingerprint = '6b9a63cb6ae511645d84d4ef170bc6bdd4b78f763d9ab3dcf82453599636c1a9';
 const validInput = {
   customerId,
   productId,
@@ -12,36 +13,42 @@ const validInput = {
   amount: 2500,
   idempotencyKey: 'checkout-123',
 };
+const persistedOrder = {
+  id: orderId,
+  customerId,
+  productId,
+  quantity: 2,
+  amount: 2500,
+  status: 'PENDING',
+  idempotencyKey: 'checkout-123',
+  version: 1,
+  createdAt,
+  updatedAt: createdAt,
+};
 
 function buildService({
   product = { id: productId, name: 'Keyboard', stock: 4 },
-  createResult = {
-    id: orderId,
-    customerId,
-    productId,
-    quantity: 2,
-    amount: 2500,
-    status: 'PENDING',
-    idempotencyKey: 'checkout-123',
-    version: 1,
-    createdAt,
-    updatedAt: createdAt,
-  },
+  createResult = persistedOrder,
+  existing = null,
   findById = jest.fn(),
-  create = jest.fn(),
+  findByIdempotencyKey = jest.fn(),
+  createIdempotent = jest.fn(),
+  createIdempotentResult = { created: true, order: createResult },
   idGenerator = jest.fn(() => orderId),
 } = {}) {
   findById.mockResolvedValue(product);
-  create.mockResolvedValue(createResult);
+  findByIdempotencyKey.mockResolvedValue(existing);
+  createIdempotent.mockResolvedValue(createIdempotentResult);
 
   return {
     service: createOrderService({
       productRepository: { findById },
-      orderRepository: { create },
+      orderRepository: { findByIdempotencyKey, createIdempotent },
       idGenerator,
     }),
     findById,
-    create,
+    findByIdempotencyKey,
+    createIdempotent,
     idGenerator,
     createResult,
   };
@@ -49,11 +56,11 @@ function buildService({
 
 describe('createOrderService', () => {
   it('creates a PENDING order when current stock is sufficient', async () => {
-    const { service, findById, create, createResult } = buildService();
+    const { service, findById, createIdempotent, createResult } = buildService();
 
     await expect(service.createOrder(validInput)).resolves.toEqual(createResult);
     expect(findById).toHaveBeenCalledWith(productId);
-    expect(create).toHaveBeenCalledWith({
+    expect(createIdempotent).toHaveBeenCalledWith({
       id: orderId,
       customerId,
       productId,
@@ -61,6 +68,7 @@ describe('createOrderService', () => {
       amount: 2500,
       status: 'PENDING',
       idempotencyKey: 'checkout-123',
+      requestFingerprint,
       version: 1,
     });
   });
@@ -70,28 +78,29 @@ describe('createOrderService', () => {
     ['amount', { ...validInput, amount: 1.5 }],
     ['idempotency key', { ...validInput, idempotencyKey: '' }],
   ])('rejects an invalid %s before querying the database', async (_label, input) => {
-    const { service, findById, create } = buildService();
+    const { service, findById, findByIdempotencyKey, createIdempotent } = buildService();
 
     await expect(service.createOrder(input)).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
       statusCode: 400,
     });
+    expect(findByIdempotencyKey).not.toHaveBeenCalled();
     expect(findById).not.toHaveBeenCalled();
-    expect(create).not.toHaveBeenCalled();
+    expect(createIdempotent).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown product', async () => {
-    const { service, create } = buildService({ product: null });
+    const { service, createIdempotent } = buildService({ product: null });
 
     await expect(service.createOrder(validInput)).rejects.toMatchObject({
       code: 'PRODUCT_NOT_FOUND',
       statusCode: 404,
     });
-    expect(create).not.toHaveBeenCalled();
+    expect(createIdempotent).not.toHaveBeenCalled();
   });
 
   it('rejects a quantity greater than current stock', async () => {
-    const { service, create } = buildService({
+    const { service, createIdempotent } = buildService({
       product: { id: productId, name: 'Keyboard', stock: 1 },
     });
 
@@ -99,7 +108,32 @@ describe('createOrderService', () => {
       code: 'INSUFFICIENT_INVENTORY',
       statusCode: 409,
     });
-    expect(create).not.toHaveBeenCalled();
+    expect(createIdempotent).not.toHaveBeenCalled();
+  });
+
+  it('returns the original order for a retry without revalidating current stock', async () => {
+    const { service, findById, createIdempotent, idGenerator } = buildService({
+      existing: { order: persistedOrder, requestFingerprint },
+      product: null,
+    });
+
+    await expect(service.createOrder(validInput)).resolves.toEqual(persistedOrder);
+    expect(findById).not.toHaveBeenCalled();
+    expect(createIdempotent).not.toHaveBeenCalled();
+    expect(idGenerator).not.toHaveBeenCalled();
+  });
+
+  it('rejects a reused key with a different request fingerprint', async () => {
+    const { service, findById, createIdempotent } = buildService({
+      existing: { order: null, requestFingerprint: 'different-request' },
+    });
+
+    await expect(service.createOrder(validInput)).rejects.toMatchObject({
+      code: 'IDEMPOTENCY_KEY_REUSED',
+      statusCode: 409,
+    });
+    expect(findById).not.toHaveBeenCalled();
+    expect(createIdempotent).not.toHaveBeenCalled();
   });
 
   it('propagates database availability errors unchanged', async () => {
