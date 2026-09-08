@@ -28,6 +28,10 @@ export function createProductRepository(queryable) {
     },
 
     async reserveWithVersion({ productId, quantity, expectedVersion }) {
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new RangeError('quantity must be a positive integer');
+      }
+
       const result = await runQuery(
         queryable,
         `

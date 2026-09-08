@@ -23,6 +23,24 @@ export class InsufficientInventoryError extends Error {
   }
 }
 
+export class InvalidInventoryQuantityError extends Error {
+  constructor(quantity) {
+    super('Inventory quantity must be a positive integer');
+    this.name = 'InvalidInventoryQuantityError';
+    this.code = 'INVALID_INVENTORY_QUANTITY';
+    this.quantity = quantity;
+  }
+}
+
+export class InventoryProductNotFoundError extends Error {
+  constructor(productId) {
+    super('Inventory product not found');
+    this.name = 'InventoryProductNotFoundError';
+    this.code = 'INVENTORY_PRODUCT_NOT_FOUND';
+    this.productId = productId;
+  }
+}
+
 export class OptimisticRetriesExhaustedError extends Error {
   constructor(productId, attempts) {
     super('Optimistic inventory retries exhausted');
@@ -34,11 +52,23 @@ export class OptimisticRetriesExhaustedError extends Error {
 }
 
 export function createOptimisticInventoryReservation({ productRepository, maxRetries = 3 }) {
+  if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+    throw new RangeError('maxRetries must be a non-negative integer');
+  }
+
   return async function reserve({ productId, quantity }) {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new InvalidInventoryQuantityError(quantity);
+    }
+
     const maxAttempts = maxRetries + 1;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const product = await productRepository.findById(productId);
+
+      if (!product) {
+        throw new InventoryProductNotFoundError(productId);
+      }
 
       if (product.stock < quantity) {
         throw new InsufficientInventoryError(productId);
