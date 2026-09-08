@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
-import {
-  createOrderRepository,
-  createProductRepository,
-} from '../../src/index.js';
+import { createOrderRepository, createProductRepository } from '../../src/index.js';
 import { createTestPool, resetDatabase } from './test-database.js';
 
 describe('PostgreSQL order persistence', () => {
@@ -67,10 +64,12 @@ describe('PostgreSQL order persistence', () => {
 
   it('enforces non-negative product stock', async () => {
     await expect(
-      pool.query(
-        'INSERT INTO products (id, name, stock, version) VALUES ($1, $2, $3, $4)',
-        [randomUUID(), 'Broken Inventory', -1, 1],
-      ),
+      pool.query('INSERT INTO products (id, name, stock, version) VALUES ($1, $2, $3, $4)', [
+        randomUUID(),
+        'Broken Inventory',
+        -1,
+        1,
+      ]),
     ).rejects.toMatchObject({ code: '23514' });
   });
 
@@ -120,10 +119,12 @@ describe('PostgreSQL order persistence', () => {
 
   it('enforces positive product and order versions', async () => {
     await expect(
-      pool.query(
-        'INSERT INTO products (id, name, stock, version) VALUES ($1, $2, $3, $4)',
-        [randomUUID(), 'Invalid Version', 1, 0],
-      ),
+      pool.query('INSERT INTO products (id, name, stock, version) VALUES ($1, $2, $3, $4)', [
+        randomUUID(),
+        'Invalid Version',
+        1,
+        0,
+      ]),
     ).rejects.toMatchObject({ code: '23514' });
 
     const product = await products.create({

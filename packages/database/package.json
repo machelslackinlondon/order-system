@@ -5,7 +5,7 @@
   "type": "module",
   "exports": "./src/index.js",
   "scripts": {
-    "build": "node --check src/index.js"
+    "build": "node --check src/index.js && node --check src/errors.js && node --check src/mappers.js && node --check src/migrate.js && node --check src/order-repository.js && node --check src/pool.js && node --check src/product-repository.js && node --check src/query.js && node --check scripts/migrate.js && node --check migrations/202609080001_create_order_tables.js"
   },
   "dependencies": {
     "node-pg-migrate": "^9.0.0",

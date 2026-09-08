@@ -1,8 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import {
-  DatabaseUnavailableError,
-  runQuery,
-} from '../../src/index.js';
+import { DatabaseUnavailableError, runQuery } from '../../src/index.js';
 
 describe('runQuery', () => {
   it.each([
@@ -19,9 +16,7 @@ describe('runQuery', () => {
     const cause = Object.assign(new Error('database detail'), { code });
     const queryable = { query: jest.fn().mockRejectedValue(cause) };
 
-    const error = await runQuery(queryable, 'SELECT $1', [1]).catch(
-      (caught) => caught,
-    );
+    const error = await runQuery(queryable, 'SELECT $1', [1]).catch((caught) => caught);
 
     expect(error).toBeInstanceOf(DatabaseUnavailableError);
     expect(error).toMatchObject({ code: 'DATABASE_UNAVAILABLE' });
