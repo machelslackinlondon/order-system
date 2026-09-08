@@ -134,9 +134,7 @@ describe('worker pool', () => {
     });
 
     const succeeded = pool.submit({ duration: 10, fails: false });
-    const failed = expect(pool.submit({ duration: 20, fails: true })).rejects.toBe(
-      processingError,
-    );
+    const failed = expect(pool.submit({ duration: 20, fails: true })).rejects.toBe(processingError);
     await succeeded;
     await failed;
 
