@@ -21,3 +21,12 @@ export function mapOrder(row) {
     updatedAt: new Date(row.updated_at),
   };
 }
+
+export function mapOrderProcessing(row) {
+  return {
+    orderId: row.order_id,
+    status: row.status,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  };
+}

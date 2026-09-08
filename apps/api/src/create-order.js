@@ -8,7 +8,7 @@ function isPositiveInteger(value) {
   return Number.isInteger(value) && value > 0;
 }
 
-function validateInput(input) {
+export function validateOrderInput(input) {
   if (
     !input ||
     typeof input.customerId !== 'string' ||
@@ -25,7 +25,7 @@ function validateInput(input) {
 export function createOrderService({ productRepository, orderRepository, idGenerator }) {
   return {
     async createOrder(input) {
-      validateInput(input);
+      validateOrderInput(input);
 
       const product = await productRepository.findById(input.productId);
 

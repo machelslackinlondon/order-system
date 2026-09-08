@@ -1,4 +1,5 @@
 export { buildApp } from './app.js';
+export { createAtomicOrderService } from './create-atomic-order.js';
 export { createOrderService } from './create-order.js';
 export {
   InsufficientInventoryError,
