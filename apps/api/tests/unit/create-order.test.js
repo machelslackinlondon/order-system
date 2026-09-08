@@ -35,6 +35,7 @@ function buildService({
   createIdempotent = jest.fn(),
   createIdempotentResult = { created: true, order: createResult },
   idGenerator = jest.fn(() => orderId),
+  publishedOrders = [],
 } = {}) {
   findById.mockResolvedValue(product);
   findByIdempotencyKey.mockResolvedValue(existing);
@@ -45,18 +46,24 @@ function buildService({
       productRepository: { findById },
       orderRepository: { findByIdempotencyKey, createIdempotent },
       idGenerator,
+      orderCreatedPublisher: {
+        async publish(order) {
+          publishedOrders.push(order);
+        },
+      },
     }),
     findById,
     findByIdempotencyKey,
     createIdempotent,
     idGenerator,
     createResult,
+    publishedOrders,
   };
 }
 
 describe('createOrderService', () => {
   it('creates a PENDING order when current stock is sufficient', async () => {
-    const { service, findById, createIdempotent, createResult } = buildService();
+    const { service, findById, createIdempotent, createResult, publishedOrders } = buildService();
 
     await expect(service.createOrder(validInput)).resolves.toEqual(createResult);
     expect(findById).toHaveBeenCalledWith(productId);
@@ -71,6 +78,7 @@ describe('createOrderService', () => {
       requestFingerprint,
       version: 1,
     });
+    expect(publishedOrders).toEqual([createResult]);
   });
 
   it.each([
@@ -112,7 +120,7 @@ describe('createOrderService', () => {
   });
 
   it('returns the original order for a retry without revalidating current stock', async () => {
-    const { service, findById, createIdempotent, idGenerator } = buildService({
+    const { service, findById, createIdempotent, idGenerator, publishedOrders } = buildService({
       existing: { order: persistedOrder, requestFingerprint },
       product: null,
     });
@@ -121,6 +129,20 @@ describe('createOrderService', () => {
     expect(findById).not.toHaveBeenCalled();
     expect(createIdempotent).not.toHaveBeenCalled();
     expect(idGenerator).not.toHaveBeenCalled();
+    expect(publishedOrders).toEqual([]);
+  });
+
+  it('does not publish when a concurrent request loses the idempotent insert', async () => {
+    const { service, publishedOrders } = buildService({
+      createIdempotentResult: {
+        created: false,
+        order: persistedOrder,
+        requestFingerprint,
+      },
+    });
+
+    await expect(service.createOrder(validInput)).resolves.toEqual(persistedOrder);
+    expect(publishedOrders).toEqual([]);
   });
 
   it('rejects a reused key with a different request fingerprint', async () => {
