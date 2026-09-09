@@ -11,7 +11,9 @@ is not listed.
 | `analytics-consumer` | Consume `order-created`; write order analytics                                                           |
 
 Policy construction rejects wildcard resources, wildcard actions, and unsupported actions such as
-administrative access. Unknown workloads, resources, and actions are denied.
+administrative access. Malformed policy definitions produce the stable
+`INVALID_LOCAL_ACCESS_POLICY` error. Unknown or malformed access requests are denied without
+coercing their fields.
 
 ## Boundary
 
