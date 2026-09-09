@@ -29,6 +29,7 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
 - `packages/events` owns stable message construction.
 - `packages/queue` owns the local FIFO delivery and acknowledgement contract.
 - `packages/retries` owns failure classification, retry delays, and dead-letter records.
+- `packages/locks` owns token-based Redis lease acquisition and safe release.
 - `apps/worker` owns bounded concurrent execution and worker metrics; it is not yet connected to the queue.
 
 The app factory does not listen on import. Tests inject the order service and use Fastify's in-process request injection, while `server.js` constructs production dependencies and opens the loopback listener.

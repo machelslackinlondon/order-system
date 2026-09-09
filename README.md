@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports bounded capacity, producer rejection or waiting, and depth metrics. A configurable worker pool provides bounded concurrent processing, a local retry policy provides exponential backoff and dead-lettering, and PostgreSQL-backed message deduplication prevents concurrent duplicate processing. Queue-to-pool wiring remains separate.
+`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports backpressure, workers provide bounded concurrency, retries provide exponential backoff and dead-lettering, and PostgreSQL-backed deduplication prevents duplicate processing. A token-owned Redis lease demonstrates cross-process locking, while queue-to-pool wiring remains separate.
 
 ## Architecture direction
 
@@ -74,6 +74,7 @@ npm run build
 - `packages/database`: persistence and migrations
 - `packages/queue`: local FIFO queue, delivery contract, and backpressure
 - `packages/retries`: transient failure backoff and local dead-letter delivery
+- `packages/locks`: token-owned Redis leases with TTL and safe release
 - `packages/events`: event contracts and publishing
 - `packages/concurrency`: explicit concurrency experiments
 - `packages/observability`: logs, metrics, and tracing
@@ -100,5 +101,5 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 - The caller supplies `amount` because product pricing is not modeled yet.
 - The queue is process-local and volatile; durable delivery arrives in a later phase.
 - Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
-- Queue-to-worker delivery, retry and deduplication integration, payments, and Redis behavior arrive in later phases.
+- Queue-to-worker delivery, retry, deduplication, lock integration, and payments arrive in later phases.
 - PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.
