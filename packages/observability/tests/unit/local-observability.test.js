@@ -114,6 +114,28 @@ describe('local observability', () => {
     });
   });
 
+  it('falls back from blank or missing message identifiers without throwing', () => {
+    const telemetry = localObservability({ write: () => undefined });
+
+    expect(
+      telemetry.createMessageContext({
+        message: {
+          requestId: 'request-123',
+          correlationId: '   ',
+          messageId: 'message-123',
+        },
+        workerId: 'worker-2',
+      }),
+    ).toMatchObject({ correlationId: 'request-123' });
+    expect(telemetry.createMessageContext({ message: undefined, workerId: 'worker-2' })).toEqual({
+      requestId: null,
+      correlationId: null,
+      orderId: null,
+      messageId: null,
+      workerId: 'worker-2',
+    });
+  });
+
   it('exposes counters, queue depth, and processing duration summaries', () => {
     const telemetry = localObservability({ write: () => undefined });
 
@@ -133,6 +155,51 @@ describe('local observability', () => {
       retry_count: 2,
       deduplication_count: 1,
       concurrency_conflicts: 3,
+    });
+  });
+
+  it('rejects invalid metric values without poisoning the registry', () => {
+    const telemetry = localObservability({ write: () => undefined });
+
+    expect(() => telemetry.metrics.increment('retry_count', -1)).toThrow(RangeError);
+    expect(() => telemetry.metrics.increment('retry_count', Number.NaN)).toThrow(RangeError);
+    expect(() => telemetry.metrics.setGauge('queue_depth', Number.POSITIVE_INFINITY)).toThrow(
+      RangeError,
+    );
+    expect(() => telemetry.metrics.observe('processing_duration', -1)).toThrow(RangeError);
+
+    expect(telemetry.metrics.snapshot()).toEqual({
+      orders_created_total: 0,
+      orders_completed_total: 0,
+      orders_failed_total: 0,
+      queue_depth: 0,
+      processing_duration: { count: 0, total: 0, average: 0, maximum: 0 },
+      retry_count: 0,
+      deduplication_count: 0,
+      concurrency_conflicts: 0,
+    });
+  });
+
+  it('records only the first terminal outcome for an operation', () => {
+    const records = [];
+    const telemetry = localObservability({
+      write: (record) => records.push(record),
+      monotonicClock: () => 10,
+    });
+    const operation = telemetry.startOperation({ event: 'order.create', context: {} });
+
+    operation.complete({ status: 'CREATED', counters: ['orders_created_total'] });
+    operation.complete({ status: 'CREATED', counters: ['orders_created_total'] });
+    operation.fail(new Error('too late'), {
+      status: 'FAILED',
+      counters: ['orders_failed_total'],
+    });
+
+    expect(records).toHaveLength(1);
+    expect(telemetry.metrics.snapshot()).toMatchObject({
+      orders_created_total: 1,
+      orders_failed_total: 0,
+      processing_duration: { count: 1 },
     });
   });
 

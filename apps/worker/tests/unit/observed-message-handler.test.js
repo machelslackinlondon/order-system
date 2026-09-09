@@ -110,4 +110,47 @@ describe('observed message handler', () => {
       deduplication_count: 1,
     });
   });
+
+  it('runs the handler for a missing message and preserves its error', async () => {
+    const records = [];
+    const processingError = new Error('message is required');
+    const observability = localObservability({ write: (record) => records.push(record) });
+    const handle = observedHandler({
+      observability,
+      workerId: 'worker-4',
+      async handler(received) {
+        expect(received).toBeUndefined();
+        throw processingError;
+      },
+    });
+
+    await expect(handle(undefined)).rejects.toBe(processingError);
+    expect(records).toEqual([
+      expect.objectContaining({
+        level: 'error',
+        event: 'message.process',
+        requestId: null,
+        correlationId: null,
+        messageId: null,
+        workerId: 'worker-4',
+        status: 'FAILED',
+      }),
+    ]);
+  });
+
+  it('does not let telemetry setup preempt message processing', async () => {
+    const handle = observedHandler({
+      observability: {
+        createMessageContext() {
+          throw new Error('telemetry unavailable');
+        },
+      },
+      workerId: 'worker-5',
+      async handler(received) {
+        return received;
+      },
+    });
+
+    await expect(handle(message)).resolves.toBe(message);
+  });
 });

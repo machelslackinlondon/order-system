@@ -140,4 +140,61 @@ describe('order request observability', () => {
     ]);
     expect(telemetry.metrics.snapshot()).toMatchObject({ orders_failed_total: 1 });
   });
+
+  it('records a failed outcome when response serialization rejects the order', async () => {
+    const records = [];
+    const telemetry = localObservability({ write: (record) => records.push(record) });
+    app = buildApp({
+      observability: telemetry,
+      orderService: {
+        async createOrder() {
+          const invalidOrder = { ...order };
+          delete invalidOrder.id;
+          return invalidOrder;
+        },
+      },
+    });
+
+    const response = await app.inject(request);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.headers['x-correlation-id']).toBe('correlation-123');
+    expect(records).toEqual([
+      expect.objectContaining({
+        level: 'error',
+        event: 'order.create',
+        correlationId: 'correlation-123',
+        status: 'FAILED',
+        error: expect.objectContaining({ name: 'Error' }),
+      }),
+    ]);
+    expect(telemetry.metrics.snapshot()).toMatchObject({ orders_failed_total: 1 });
+  });
+
+  it.each([
+    ['invalid body', { ...request, payload: { ...request.payload, quantity: 0 } }],
+    [
+      'missing idempotency key',
+      {
+        ...request,
+        headers: {
+          'content-type': 'application/json',
+          'x-correlation-id': 'correlation-123',
+        },
+      },
+    ],
+  ])('returns the correlation ID for %s validation errors', async (_case, invalidRequest) => {
+    const records = [];
+    const telemetry = localObservability({ write: (record) => records.push(record) });
+    app = buildApp({
+      observability: telemetry,
+      orderService: { createOrder: () => order },
+    });
+
+    const response = await app.inject(invalidRequest);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.headers['x-correlation-id']).toBe('correlation-123');
+    expect(records).toEqual([]);
+  });
 });
