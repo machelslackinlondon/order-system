@@ -59,3 +59,23 @@ describe('experiment command runner', () => {
     });
   });
 });
+
+describe('experiment CLI arguments', () => {
+  it.each([
+    ['a missing command', []],
+    ['an extra argument', ['race-condition', 'unexpected']],
+  ])('rejects %s with usage guidance', async (_case, arguments_) => {
+    const lines = [];
+    const errors = [];
+
+    await expect(
+      experimentsApi.runExperimentCli(arguments_, {
+        write: (line) => lines.push(line),
+        writeError: (line) => errors.push(line),
+      }),
+    ).resolves.toBe(1);
+
+    expect(lines).toEqual([]);
+    expect(errors).toEqual(['Usage: node packages/experiments/src/cli.js <experiment>']);
+  });
+});
