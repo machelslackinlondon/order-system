@@ -65,6 +65,18 @@ describe('leader election simulation', () => {
     expect(simulation.getLeader()).toBe('worker-b');
   });
 
+  it('rejects a heartbeat from a leader whose timeout has already elapsed', () => {
+    const { clock, simulation } = createSimulation();
+    simulation.electLeader();
+
+    clock.advance(100);
+
+    expect(() => simulation.heartbeat('worker-a')).toThrow(
+      'Only the current leader can send a heartbeat',
+    );
+    expect(simulation.getLeader()).toBe('worker-b');
+  });
+
   it('skips each failed leader during later elections', () => {
     const { clock, simulation } = createSimulation();
     simulation.electLeader();
