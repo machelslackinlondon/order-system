@@ -37,6 +37,7 @@ function buildService({
   idGenerator = jest.fn(() => orderId),
   publishedOrders = [],
   publishedContexts = [],
+  observability,
 } = {}) {
   findById.mockResolvedValue(product);
   findByIdempotencyKey.mockResolvedValue(existing);
@@ -47,6 +48,7 @@ function buildService({
       productRepository: { findById },
       orderRepository: { findByIdempotencyKey, createIdempotent },
       idGenerator,
+      observability,
       orderCreatedPublisher: {
         async publish(order, context) {
           publishedOrders.push(order);
@@ -158,6 +160,27 @@ describe('createOrderService', () => {
     await service.createOrder({ ...validInput, requestContext });
 
     expect(publishedContexts).toEqual([requestContext]);
+  });
+
+  it('counts only the winning insert as a created order', async () => {
+    const increments = [];
+    const observability = {
+      metrics: {
+        increment(name) {
+          increments.push(name);
+        },
+      },
+    };
+    const created = buildService({ observability });
+    const retried = buildService({
+      existing: { order: persistedOrder, requestFingerprint },
+      observability,
+    });
+
+    await created.service.createOrder(validInput);
+    await retried.service.createOrder(validInput);
+
+    expect(increments).toEqual(['orders_created_total']);
   });
 
   it('rejects a reused key with a different request fingerprint', async () => {

@@ -91,4 +91,23 @@ describe('observed message handler', () => {
     ]);
     expect(observability.metrics.snapshot()).toMatchObject({ orders_failed_total: 1 });
   });
+
+  it('counts a duplicate result without counting another completed order', async () => {
+    const records = [];
+    const observability = localObservability({ write: (record) => records.push(record) });
+    const handle = observedHandler({
+      observability,
+      workerId: 'worker-3',
+      async handler() {
+        return { status: 'DUPLICATE' };
+      },
+    });
+
+    await expect(handle(message)).resolves.toEqual({ status: 'DUPLICATE' });
+    expect(records).toEqual([expect.objectContaining({ status: 'DUPLICATE' })]);
+    expect(observability.metrics.snapshot()).toMatchObject({
+      orders_completed_total: 0,
+      deduplication_count: 1,
+    });
+  });
 });

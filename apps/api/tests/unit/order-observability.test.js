@@ -89,7 +89,7 @@ describe('order request observability', () => {
         status: 'CREATED',
       },
     ]);
-    expect(telemetry.metrics.snapshot()).toMatchObject({ orders_created_total: 1 });
+    expect(telemetry.metrics.snapshot()).toMatchObject({ orders_created_total: 0 });
   });
 
   it('uses the request ID as correlation ID and records service errors', async () => {
