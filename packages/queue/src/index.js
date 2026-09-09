@@ -1,8 +1,4 @@
-export {
-  simulateAtLeastOnce,
-  simulateAtMostOnce,
-  simulateIdempotentEffects,
-} from './messaging-semantics.js';
+import { createMessagingSemanticsSimulations } from './messaging-semantics.js';
 
 export class QueueShutdownError extends Error {
   constructor() {
@@ -166,3 +162,6 @@ export function createInMemoryQueue({
     },
   };
 }
+
+export const { simulateAtLeastOnce, simulateAtMostOnce, simulateIdempotentEffects } =
+  createMessagingSemanticsSimulations({ createQueue: createInMemoryQueue });
