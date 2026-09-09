@@ -99,12 +99,15 @@ not durable.
 
 ## Processing succeeds but acknowledgement fails
 
-- **Failure:** The handler commits its effects, but the transport does not retain the acknowledgement.
-- **Impact:** The message is delivered again even though the first attempt completed.
-- **Detection:** Observe a repeated `messageId`, elevated delivery attempts, and a `DUPLICATE`
-  processor result.
-- **Recovery:** Run the duplicate through the idempotent processor, skip its handler, then acknowledge
-  it again.
+- **Failure:** In a future durable broker, the handler commits its effects but the broker does not
+  retain the acknowledgement.
+- **Impact:** The broker delivers the message again even though the first attempt completed. The local
+  queue cannot simulate this boundary because it removes a message immediately after its handler
+  resolves; its existing redelivery test covers handler rejection instead.
+- **Detection:** The local queue exposes no delivery-attempt metric. A durable adapter must surface
+  broker redelivery counts, repeated `messageId` values, and `DUPLICATE` processor results.
+- **Recovery:** Run the redelivery through the idempotent processor, skip its handler, then acknowledge
+  it again through the durable broker.
 - **Data consistency:** Transactional PostgreSQL effects remain single-application. Non-transactional
   external effects are safe only when they use stable idempotency keys.
 
