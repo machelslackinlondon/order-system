@@ -32,7 +32,7 @@ git clone https://github.com/machelslackinlondon/order-system.git
 cd order-system
 cp .env.example .env
 npm install
-docker compose up -d postgres
+docker compose up -d postgres redis
 npm run db:migrate
 docker compose exec -T postgres psql -U orders -d orders -c \
   "INSERT INTO products (id, name, stock, version) VALUES ('0f2a6064-9daa-4947-a739-b8825e2b8146', 'Mechanical Keyboard', 5, 1) ON CONFLICT (id) DO NOTHING"
@@ -65,7 +65,9 @@ npm run format:check
 npm run build
 ```
 
-`npm test` runs unit tests followed by serial integration tests against the `orders_test` PostgreSQL database. Start PostgreSQL first with `docker compose up -d postgres`.
+`npm test` runs unit tests followed by serial integration tests against the `orders_test`
+PostgreSQL database and the dedicated nonzero Redis database selected by `TEST_REDIS_URL`. Start
+both services first with `docker compose up -d postgres redis`.
 
 ## Workspaces
 
