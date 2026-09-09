@@ -47,4 +47,14 @@ describe('CAP inventory partition simulation', () => {
       consistencyPreserved: false,
     });
   });
+
+  it('rejects unsupported partition policies instead of silently choosing a trade-off', () => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'CA',
+        initialStock: 5,
+        reservations: partitionedReservations,
+      }),
+    ).toThrow('Partition policy must be CP or AP');
+  });
 });
