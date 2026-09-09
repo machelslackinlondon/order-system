@@ -39,3 +39,6 @@ The app factory does not listen on import. Tests inject the order service and us
 ## Failure behavior
 
 Validation, missing products, insufficient current stock, and database unavailability have stable public codes. Unexpected errors return `INTERNAL_ERROR`. SQL, connection strings, causes, and stack traces are never serialized to clients.
+
+See the [failure-mode guidance](failure-modes.md) for dependency outages, ambiguous outcomes,
+redelivery, crash recovery, and the current database-to-queue publication gap.
