@@ -124,7 +124,7 @@ export function createMessagingExperiments() {
         title: 'Idempotent message effects',
         demonstrates: 'A stable message ID prevents repeated effects after redelivery.',
         source: 'packages/queue/src/messaging-semantics.js',
-        commits: ['1505a96', 'd31063d'],
+        commits: ['10b051d', 'b4a0219'],
         run: runDeduplication,
       },
     ],
