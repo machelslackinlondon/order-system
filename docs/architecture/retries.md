@@ -22,5 +22,7 @@ processing and infrastructure errors. The source message must remain unacknowled
 
 Retry only idempotent operations. Backoff reduces pressure but does not make duplicate side effects
 safe, and a dead-letter queue still needs monitoring and an explicit replay process. The retry
-policy is currently independent of the worker pool and queue consumer; their integration should
-acknowledge a source message only after processing or dead-letter publication completes.
+policy remains independent of the worker pool. `createRetryingQueueProcessor()` provides the local
+queue boundary: it acknowledges a source message after processing succeeds or its dead letter is
+stored, and retains the source message when retry infrastructure fails. The application runtime
+does not start this processor yet.

@@ -44,12 +44,13 @@ not durable.
 ## Worker crashes
 
 - **Failure:** A handler rejects or its process exits while work is in flight.
-- **Impact:** A rejected local handler leaves the message at the queue head for the next consumer.
-  A full process exit loses the process-local queue and all pending messages.
+- **Impact:** The local retrying processor repeats classified transient handler failures. Exhausted
+  work is acknowledged only after its dead letter is stored. A full process exit still loses the
+  process-local queue and all pending messages.
 - **Detection:** Use process health checks, failed-job metrics, missing heartbeats, and stale pending
   work alerts.
-- **Recovery:** Restart the worker. Production delivery needs a durable broker that redelivers
-  unacknowledged messages; the local adapter cannot recover messages after process exit.
+- **Recovery:** Retry in-process failures with a bound and inspect the local dead-letter queue.
+  Restart after a process crash; the local adapter cannot recover messages lost with the process.
 - **Data consistency:** An open PostgreSQL transaction rolls back on connection loss, but external
   effects may be partial and require idempotency plus reconciliation.
 
