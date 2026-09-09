@@ -149,7 +149,24 @@ Inspect the history with:
 git log --oneline --decorate --graph
 ```
 
-See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for the workflow and [`docs/development/commit-map.md`](docs/development/commit-map.md) for concept-to-commit navigation.
+Read each focused pair in listed order: the first commit defines the failing behavior and the second
+implements it. Remove `--stat` when the complete patches are useful.
+
+```bash
+git show --stat 3c03007 be69c50  # lost update
+git show --stat 470ba83 110544d  # optimistic retry
+git show --stat 5317d01 7129162  # atomic transaction
+git show --stat 9845f99 0d8be61  # order idempotency
+git show --stat 1afc8ff 3f01e8e  # local queue
+git show --stat c861e1c fc4c983  # retries and dead-lettering
+git show --stat 1505a96 d31063d  # message deduplication
+git show --stat dd3cff3 642cadd  # distributed lock
+```
+
+See the [Git workflow](docs/development/git-workflow.md) for the commit discipline, the
+[commit map](docs/development/commit-map.md) for concept-to-commit navigation, the
+[architecture map](docs/architecture/overview.md) for focused design documents, and the
+[engineering guidance](docs/guidance/engineering.md) for decision prompts and executable evidence.
 
 ## Known limitations
 
