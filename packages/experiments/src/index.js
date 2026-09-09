@@ -1,3 +1,12 @@
+import { createConcurrencyExperiments } from './concurrency-experiments.js';
+import { createMessagingExperiments } from './messaging-experiments.js';
+
+export { createConcurrencyExperiments, createMessagingExperiments };
+
+export function createExperiments() {
+  return new Map([...createConcurrencyExperiments(), ...createMessagingExperiments()]);
+}
+
 export class UnknownExperimentError extends Error {
   constructor(experiment, available) {
     super(`Unknown experiment: ${experiment}`);
@@ -38,7 +47,7 @@ export async function runExperimentCli(
   {
     write = (line) => console.log(line),
     writeError = (line) => console.error(line),
-    experiments = createConcurrencyExperiments(),
+    experiments = createExperiments(),
   } = {},
 ) {
   try {
@@ -52,6 +61,3 @@ export async function runExperimentCli(
     return 1;
   }
 }
-import { createConcurrencyExperiments } from './concurrency-experiments.js';
-
-export { createConcurrencyExperiments };

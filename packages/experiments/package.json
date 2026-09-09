@@ -5,10 +5,13 @@
   "type": "module",
   "exports": "./src/index.js",
   "scripts": {
-    "build": "node --check src/index.js && node --check src/cli.js && node --check src/concurrency-experiments.js"
+    "build": "node --check src/index.js && node --check src/cli.js && node --check src/concurrency-experiments.js && node --check src/messaging-experiments.js"
   },
   "dependencies": {
     "@order-system/concurrency": "^0.1.0",
-    "@order-system/locks": "^0.1.0"
+    "@order-system/locks": "^0.1.0",
+    "@order-system/queue": "^0.1.0",
+    "@order-system/retries": "^0.1.0",
+    "@order-system/worker": "^0.1.0"
   }
 }

@@ -26,7 +26,8 @@ describe('messaging and worker experiment commands', () => {
       'deduplication',
       {
         observations: ['Delivery attempts: 2', 'Effect applications: 1', 'Duplicates skipped: 1'],
-        conclusion: 'Redelivery repeated the handler but the stable message ID protected the effect.',
+        conclusion:
+          'Redelivery repeated the handler but the stable message ID protected the effect.',
       },
     ],
     [
