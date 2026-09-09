@@ -32,22 +32,24 @@ crash and ambiguous acknowledgement. That end-to-end promise is generally imprac
 
 Exactly-once effects are an application-level outcome. The transport may redeliver, while a stable
 message or idempotency key, a durable deduplication record, and a transaction ensure the business
-effect commits once. A duplicate can reach the deduplication boundary without invoking the business
-handler again. External side effects need their own idempotency keys or an equivalent durable
-protocol.
+effect commits once. A duplicate still invokes the consumer at the deduplication boundary, while
+the protected business operation is not repeated. External side effects need their own idempotency
+keys or an equivalent durable protocol.
 
 ## What this repository demonstrates
 
-The deterministic queue simulations count transport attempts, business-handler invocations, and
+The deterministic queue simulations count transport attempts, consumer-handler invocations, and
 effect applications:
 
 - at-most-once loss: one transport attempt, no handler invocation, no effect;
 - at-least-once acknowledgement loss: two attempts, two handler invocations, two effects;
-- idempotent effects: two attempts, one handler invocation, one effect, one duplicate skipped.
+- idempotent effects: two attempts, two handler invocations, one effect, one duplicate skipped.
 
 The local queue removes a message after its handler resolves and keeps a rejected message at the
-head for another in-process attempt. It is process-local and cannot provide durable delivery,
-separate acknowledgement loss from a process crash, or recover messages after restart. PostgreSQL's
+head for another in-process attempt. The acknowledgement-loss simulations apply the effect and then
+reject the handler as a local stand-in for an ambiguous acknowledgement, so the next consumer
+attempt receives the retained message. This does not create an independently durable acknowledgement
+boundary: the queue remains process-local and cannot recover messages after restart. PostgreSQL's
 `processed_messages` claim protects the demonstrated database effect transactionally; it does not
 make the local transport exactly-once.
 
