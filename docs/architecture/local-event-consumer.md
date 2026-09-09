@@ -6,9 +6,9 @@ The worker exports a small `ORDER_CREATED` analytics consumer:
 ORDER_CREATED -> analytics consumer -> local analytics sink
 ```
 
-The consumer validates the message type, message ID, order ID, and timestamp before calling the
-injected sink. A valid event produces a compact record containing `messageId`, `orderId`, and
-`occurredAt`.
+The consumer validates the message type, nonblank message and order IDs, and the producer's
+canonical UTC ISO timestamp before calling the injected sink. A valid event produces a compact
+record containing `messageId`, `orderId`, and `occurredAt`.
 
 ## Duplicate and retry behavior
 
