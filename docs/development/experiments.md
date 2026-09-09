@@ -22,7 +22,8 @@ the focused integration test.
 
 These scenarios demonstrate one behavior at a time and do not start the application runtime. Use
 the printed source path to inspect the implementation and the printed commit hashes to inspect its
-TDD history.
+TDD history. The CLI accepts exactly one command name and prints usage guidance for missing or extra
+arguments.
 
 Focused verification:
 
