@@ -1,3 +1,9 @@
+export {
+  simulateAtLeastOnce,
+  simulateAtMostOnce,
+  simulateIdempotentEffects,
+} from './messaging-semantics.js';
+
 export class QueueShutdownError extends Error {
   constructor() {
     super('Queue has shut down');
