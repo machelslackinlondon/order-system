@@ -1,6 +1,6 @@
 # Distributed Order System
 
-A compact reference implementation and practical guide to order processing, concurrency, messaging, failure handling, database consistency, AWS architecture, observability, and disciplined test-driven delivery.
+A compact reference implementation and practical guide to order processing, concurrency, messaging, failure handling, database consistency, local deployment, observability, and disciplined test-driven delivery.
 
 Repository: <https://github.com/machelslackinlondon/order-system>
 
@@ -15,13 +15,15 @@ between delivery guarantees and application-level effects.
 ## Architecture direction
 
 ```text
-Customer -> Order API -> PostgreSQL -> Queue -> Workers
-                    |                    |         |
-                    +-> Redis            |         +-> Inventory
-                                         +------------> Payment simulation
+Customer -> Caddy gateway -> Order API -> PostgreSQL
+                                  |
+                                  +-> local FIFO queue (same process)
+
+Distributed-lock experiments ------------> Redis
 ```
 
-The repository deliberately uses a small number of well-defined modules rather than many microservices. Local adapters will remain usable without AWS; later infrastructure maps the same responsibilities to managed AWS services.
+The optional Compose application profile runs the gateway, migrations, API, PostgreSQL, and Redis
+locally. It does not provision or depend on cloud services.
 
 ## Prerequisites
 
@@ -42,6 +44,15 @@ docker compose exec -T postgres psql -U orders -d orders -c \
   "INSERT INTO products (id, name, stock, version) VALUES ('0f2a6064-9daa-4947-a739-b8825e2b8146', 'Mechanical Keyboard', 5, 1) ON CONFLICT (id) DO NOTHING"
 npm run start:api
 ```
+
+Alternatively, run the application profile entirely in containers:
+
+```bash
+docker compose --profile app up --build -d
+curl --fail http://127.0.0.1:8080/health
+```
+
+See the [local infrastructure guidance](infra/docker/README.md) for lifecycle and boundary details.
 
 In a second terminal, create an order:
 
@@ -108,4 +119,4 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 - The queue is process-local and volatile; durable delivery arrives in a later phase.
 - Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
 - Queue-to-worker delivery, retry, deduplication, lock integration, and payments arrive in later phases.
-- PostgreSQL and Redis are local development dependencies; AWS resources are never deployed automatically.
+- The deployment profile is fully local and provides no durable cross-process message broker.
