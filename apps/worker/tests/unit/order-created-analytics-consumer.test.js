@@ -59,13 +59,20 @@ describe('order-created analytics consumer', () => {
     expect(records).toHaveLength(1);
   });
 
-  it('rejects an invalid event without writing a record', async () => {
+  it.each([
+    ['an unexpected event type', { type: 'ORDER_CANCELLED' }],
+    ['a blank message ID', { messageId: '   ' }],
+    ['a blank order ID', { orderId: '\t' }],
+    ['a noncanonical timestamp', { timestamp: 'September 9, 2026' }],
+    ['an impossible timestamp', { timestamp: '2026-02-29T12:00:00.000Z' }],
+    ['a malformed timestamp', { timestamp: 'not-a-date' }],
+  ])('rejects %s without writing a record', async (_case, overrides) => {
     const records = [];
     const consumer = analyticsConsumer(async (record) => {
       records.push(record);
     });
 
-    await expect(consumer.handle(orderCreated({ type: 'ORDER_CANCELLED' }))).rejects.toMatchObject({
+    await expect(consumer.handle(orderCreated(overrides))).rejects.toMatchObject({
       code: 'INVALID_ORDER_CREATED_EVENT',
     });
     expect(records).toEqual([]);
