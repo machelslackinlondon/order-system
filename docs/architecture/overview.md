@@ -31,6 +31,8 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
   educational delivery-semantics simulations.
 - `packages/retries` owns failure classification, retry delays, and dead-letter records.
 - `packages/locks` owns token-based Redis lease acquisition and safe release.
+- `packages/access-control` owns executable local workload capability policies; these are guidance
+  and are not enforced by the runtime.
 - `packages/concurrency` owns isolated race, locking, network-partition, consistency, replication,
   sharding, and leader-election simulations; these are not wired into the request path.
 - `apps/worker` owns bounded concurrent execution, worker metrics, and isolated message-claim and

@@ -11,8 +11,10 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 An optional [Redis claim-store example](docs/architecture/redis-idempotency.md) demonstrates
 conditional duplicate suppression with TTL retention. A small
 [local analytics consumer](docs/architecture/local-event-consumer.md) demonstrates event
-validation, duplicate suppression, and retry cleanup. Both remain isolated examples; PostgreSQL
-remains the default transactional deduplication mechanism.
+validation, duplicate suppression, and retry cleanup. An executable
+[local access-control example](docs/architecture/local-access-control.md) defines exact workload
+capabilities and rejects wildcard or administrative grants. These remain isolated examples;
+PostgreSQL remains the default transactional deduplication mechanism.
 
 See the [failure-mode guidance](docs/architecture/failure-modes.md) for current outage behavior and
 the [messaging-semantics guidance](docs/architecture/messaging-semantics.md) for the distinction
@@ -99,6 +101,7 @@ both services first with `docker compose up -d postgres redis`.
 - `packages/queue`: local FIFO queue, delivery contract, and backpressure
 - `packages/retries`: transient failure backoff and local dead-letter delivery
 - `packages/locks`: token-owned Redis leases with TTL and safe release
+- `packages/access-control`: local least-privilege workload policies
 - `packages/events`: event contracts and publishing
 - `packages/concurrency`: explicit concurrency experiments
 - `packages/observability`: logs, metrics, and tracing
