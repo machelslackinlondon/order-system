@@ -25,6 +25,38 @@ function deferred() {
   return { promise, resolve };
 }
 
+function observeSecondClaim(pool) {
+  const secondClaimIssued = deferred();
+  let acquiredClients = 0;
+
+  return {
+    secondClaimIssued: secondClaimIssued.promise,
+    pool: {
+      async connect() {
+        const client = await pool.connect();
+        acquiredClients += 1;
+
+        if (acquiredClients !== 2) {
+          return client;
+        }
+
+        return {
+          query(text, values) {
+            const query = client.query(text, values);
+            if (text.includes('INSERT INTO processed_messages')) {
+              secondClaimIssued.resolve();
+            }
+            return query;
+          },
+          release(error) {
+            client.release(error);
+          },
+        };
+      },
+    },
+  };
+}
+
 async function createOrder(pool) {
   const productId = randomUUID();
   const orderId = randomUUID();
@@ -107,9 +139,10 @@ describe('idempotent message processing', () => {
     const { createIdempotentMessageProcessor } = await workerApi;
     const firstStarted = deferred();
     const releaseFirst = deferred();
+    const observedClaim = observeSecondClaim(pool);
     let handlerCalls = 0;
     const processor = createIdempotentMessageProcessor({
-      pool,
+      pool: observedClaim.pool,
       handler: async () => {
         handlerCalls += 1;
         firstStarted.resolve();
@@ -121,6 +154,7 @@ describe('idempotent message processing', () => {
     const firstDelivery = processor.process(message());
     await firstStarted.promise;
     const concurrentDelivery = processor.process(message());
+    await observedClaim.secondClaimIssued;
     releaseFirst.resolve();
 
     await expect(Promise.all([firstDelivery, concurrentDelivery])).resolves.toEqual([
@@ -128,6 +162,33 @@ describe('idempotent message processing', () => {
       { status: 'DUPLICATE' },
     ]);
     expect(handlerCalls).toBe(1);
+  });
+
+  it('commits handler database writes with the processed-message record', async () => {
+    const { createProcessedMessageRepository } = await databaseApi;
+    const { createIdempotentMessageProcessor } = await workerApi;
+    const orderId = await createOrder(pool);
+    const processor = createIdempotentMessageProcessor({
+      pool,
+      handler: async (_receivedMessage, { client }) => {
+        await client.query('INSERT INTO order_processing (order_id, status) VALUES ($1, $2)', [
+          orderId,
+          'PROCESSING',
+        ]);
+      },
+    });
+
+    await expect(processor.process(message())).resolves.toEqual({
+      status: 'PROCESSED',
+      result: undefined,
+    });
+
+    await expect(
+      createProcessedMessageRepository(pool).findByMessageId(message().messageId),
+    ).resolves.toMatchObject({ messageId: message().messageId });
+    await expect(
+      pool.query('SELECT order_id FROM order_processing WHERE order_id = $1', [orderId]),
+    ).resolves.toMatchObject({ rowCount: 1 });
   });
 
   it('does not record a message when its handler fails', async () => {
