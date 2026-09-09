@@ -17,6 +17,7 @@ and stable code when present.
 
 Telemetry sink failures are isolated from application outcomes. The sink may lose a record, but it
 does not turn a successful order or message operation into a failure.
+Each operation records only its first terminal outcome.
 
 ## Metrics
 
@@ -31,15 +32,17 @@ The in-memory registry exposes:
 - `processing_duration`: count, total, average, and maximum milliseconds
 
 Counters, gauges, and duration summaries reset when the process restarts and are not aggregated
-across processes.
+across processes. Metric updates reject negative and non-finite values before changing registry
+state.
 
 ## Current boundary
 
-The `POST /orders` handler emits custom records after schema validation. Fastify retains its own
-logging for other requests. The worker wrapper is exported but is not connected to the local queue,
-and the remaining metric owners must update their counters or gauge when they are integrated.
-Correlation IDs provide a lightweight local trace; there is no external collector or durable metric
-store.
+The `POST /orders` route returns its correlation header even for validation errors. Its custom
+operation starts after schema validation and records the outcome only after Fastify sends the
+serialized response. Fastify retains its own logging for other requests. The worker wrapper is
+exported but is not connected to the local queue, and the remaining metric owners must update their
+counters or gauge when they are integrated. Correlation IDs provide a lightweight local trace;
+there is no external collector or durable metric store.
 
 ## Focused verification
 
