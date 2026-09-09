@@ -1,5 +1,14 @@
 function isNonEmptyString(value) {
-  return typeof value === 'string' && value.length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isCanonicalTimestamp(value) {
+  if (!isNonEmptyString(value)) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 function isValidEvent(event) {
@@ -9,8 +18,7 @@ function isValidEvent(event) {
     event.type === 'ORDER_CREATED' &&
     isNonEmptyString(event.messageId) &&
     isNonEmptyString(event.orderId) &&
-    isNonEmptyString(event.timestamp) &&
-    !Number.isNaN(Date.parse(event.timestamp))
+    isCanonicalTimestamp(event.timestamp)
   );
 }
 
