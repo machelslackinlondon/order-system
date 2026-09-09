@@ -57,4 +57,56 @@ describe('CAP inventory partition simulation', () => {
       }),
     ).toThrow('Partition policy must be CP or AP');
   });
+
+  it.each([-1, 1.5, Number.NaN])('rejects invalid initial stock %p', (initialStock) => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'AP',
+        initialStock,
+        reservations: partitionedReservations,
+      }),
+    ).toThrow('Initial stock must be a non-negative integer');
+  });
+
+  it.each([
+    { label: 'one reservation', reservations: partitionedReservations.slice(0, 1) },
+    {
+      label: 'three reservations',
+      reservations: [
+        ...partitionedReservations,
+        { orderId: 'order-paris', replica: 'paris', quantity: 1 },
+      ],
+    },
+  ])('rejects a scenario containing $label', ({ reservations }) => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'AP',
+        initialStock: 5,
+        reservations,
+      }),
+    ).toThrow('Partition simulation requires exactly two reservations');
+  });
+
+  it('rejects duplicate replica identifiers', () => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'AP',
+        initialStock: 5,
+        reservations: [
+          partitionedReservations[0],
+          { ...partitionedReservations[1], replica: 'london' },
+        ],
+      }),
+    ).toThrow('Partition simulation requires two distinct replicas');
+  });
+
+  it.each([0, -1, 1.5, Number.NaN])('rejects invalid reservation quantity %p', (quantity) => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'AP',
+        initialStock: 5,
+        reservations: [{ ...partitionedReservations[0], quantity }, partitionedReservations[1]],
+      }),
+    ).toThrow('Reservation quantities must be positive integers');
+  });
 });
