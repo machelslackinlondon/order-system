@@ -26,15 +26,27 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
   let leaderId = null;
   let lastHeartbeatAt = null;
 
-  function electLeader() {
+  function electLeaderAt(timestamp) {
     if (leaderId !== null) {
       return leaderId;
     }
 
     leaderId = configuredWorkers.find((workerId) => !failedWorkers.has(workerId)) ?? null;
-    lastHeartbeatAt = leaderId === null ? null : now();
+    lastHeartbeatAt = leaderId === null ? null : timestamp;
 
     return leaderId;
+  }
+
+  function electLeader() {
+    return leaderId === null ? electLeaderAt(now()) : leaderId;
+  }
+
+  function replaceExpiredLeader(timestamp) {
+    failedWorkers.add(leaderId);
+    leaderId = null;
+    lastHeartbeatAt = null;
+
+    return electLeaderAt(timestamp);
   }
 
   return {
@@ -49,11 +61,17 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
         throw new RangeError(`Unknown worker ID: ${String(workerId)}`);
       }
 
+      const timestamp = now();
+
+      if (leaderId !== null && timestamp - lastHeartbeatAt >= heartbeatTimeoutMs) {
+        replaceExpiredLeader(timestamp);
+      }
+
       if (workerId !== leaderId) {
         throw new Error('Only the current leader can send a heartbeat');
       }
 
-      lastHeartbeatAt = now();
+      lastHeartbeatAt = timestamp;
     },
 
     checkLeader() {
@@ -65,11 +83,7 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
         return leaderId;
       }
 
-      failedWorkers.add(leaderId);
-      leaderId = null;
-      lastHeartbeatAt = null;
-
-      return electLeader();
+      return replaceExpiredLeader(now());
     },
   };
 }
