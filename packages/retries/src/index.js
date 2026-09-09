@@ -88,16 +88,24 @@ export function createRetryingQueueProcessor({
   operation,
   retryOptions = {},
 }) {
+  async function process(message) {
+    try {
+      await executeWithRetry({
+        ...retryOptions,
+        message,
+        operation,
+        deadLetterQueue,
+      });
+    } catch (error) {
+      if (!(error instanceof MessageDeadLetteredError)) {
+        throw error;
+      }
+    }
+  }
+
   return {
     start() {
-      return sourceQueue.consume((message) =>
-        executeWithRetry({
-          ...retryOptions,
-          message,
-          operation,
-          deadLetterQueue,
-        }),
-      );
+      return sourceQueue.consume(process);
     },
   };
 }
