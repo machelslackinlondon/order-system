@@ -100,6 +100,22 @@ describe('CAP inventory partition simulation', () => {
     ).toThrow('Partition simulation requires two distinct replicas');
   });
 
+  it.each([
+    { label: 'empty identifiers', replicas: ['', 'frankfurt'] },
+    { label: 'object identifiers', replicas: [{ region: 'london' }, { region: 'frankfurt' }] },
+  ])('rejects $label before property-key coercion', ({ replicas }) => {
+    expect(() =>
+      concurrency.simulatePartitionedInventory({
+        policy: 'AP',
+        initialStock: 5,
+        reservations: partitionedReservations.map((reservation, index) => ({
+          ...reservation,
+          replica: replicas[index],
+        })),
+      }),
+    ).toThrow('Partition simulation requires two distinct replicas');
+  });
+
   it.each([0, -1, 1.5, Number.NaN])('rejects invalid reservation quantity %p', (quantity) => {
     expect(() =>
       concurrency.simulatePartitionedInventory({
