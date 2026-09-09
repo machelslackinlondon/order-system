@@ -43,6 +43,7 @@ export function buildApp({ orderService, logger = false }) {
     return reply.code(500).send(errorBody('INTERNAL_ERROR', 'Internal server error'));
   });
 
+  app.get('/health', async () => ({ status: 'ok' }));
   app.register(registerOrdersRoute, { orderService });
 
   return app;
