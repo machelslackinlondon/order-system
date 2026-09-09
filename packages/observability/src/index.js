@@ -16,11 +16,18 @@ function createMetricsRegistry() {
   let durationTotal = 0;
   let durationMaximum = 0;
 
+  function assertMetricValue(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+      throw new RangeError('Metric values must be finite, nonnegative numbers');
+    }
+  }
+
   return {
     increment(name, amount = 1) {
       if (!counters.has(name)) {
         throw new RangeError(`Unknown counter: ${name}`);
       }
+      assertMetricValue(amount);
       counters.set(name, counters.get(name) + amount);
     },
 
@@ -28,6 +35,7 @@ function createMetricsRegistry() {
       if (name !== 'queue_depth') {
         throw new RangeError(`Unknown gauge: ${name}`);
       }
+      assertMetricValue(value);
       queueDepth = value;
     },
 
@@ -35,6 +43,7 @@ function createMetricsRegistry() {
       if (name !== 'processing_duration') {
         throw new RangeError(`Unknown duration: ${name}`);
       }
+      assertMetricValue(value);
       durationCount += 1;
       durationTotal += value;
       durationMaximum = Math.max(durationMaximum, value);
@@ -114,19 +123,30 @@ export function createLocalObservability({
     },
 
     createMessageContext({ message, workerId }) {
+      const source = message && typeof message === 'object' ? message : {};
+      const correlationId = [source.correlationId, source.requestId, source.messageId].find(
+        (identifier) => typeof identifier === 'string' && identifier.trim() !== '',
+      );
+
       return completeContext({
-        requestId: message.requestId,
-        correlationId: message.correlationId ?? message.requestId ?? message.messageId,
-        orderId: message.orderId,
-        messageId: message.messageId,
+        requestId: source.requestId,
+        correlationId,
+        orderId: source.orderId,
+        messageId: source.messageId,
         workerId,
       });
     },
 
     startOperation({ event, context }) {
       const startedAt = monotonicClock();
+      let finished = false;
+      let terminalRecord;
 
       function finish({ status, context: finalContext = {}, counters = [], error }) {
+        if (finished) {
+          return terminalRecord;
+        }
+
         const duration = Math.max(0, monotonicClock() - startedAt);
         for (const counter of counters) {
           metrics.increment(counter);
@@ -142,6 +162,8 @@ export function createLocalObservability({
           status,
           ...(error === undefined ? {} : { error: serializeError(error) }),
         };
+        finished = true;
+        terminalRecord = record;
         safelyWrite(write, record);
         return record;
       }
