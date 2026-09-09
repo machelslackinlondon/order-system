@@ -19,3 +19,8 @@ creation. The injected clock keeps timing tests deterministic.
 The pool is intentionally independent of the local queue. Queue acknowledgement must remain tied
 to completed processing, so the queue-to-pool bridge belongs in a later phase that defines that
 delivery boundary explicitly.
+
+`createIdempotentMessageProcessor()` provides the separate PostgreSQL-backed deduplication boundary.
+It returns `PROCESSED` for the winning delivery and `DUPLICATE` for an existing message identifier.
+Database handler work must use its supplied transaction client to commit atomically with the
+processed-message record.
