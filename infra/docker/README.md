@@ -1,7 +1,7 @@
 # Local infrastructure
 
 The root `docker-compose.yml` runs stateful dependencies by default and the application stack
-through the optional `app` profile, without managed or cloud services.
+through the optional `app` profile using only local containers and host dependencies.
 
 | Service       | Purpose                                      | Local endpoint      | Persistent volume |
 | ------------- | -------------------------------------------- | ------------------- | ----------------- |
