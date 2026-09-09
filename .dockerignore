@@ -1,0 +1,11 @@
+.git
+.local
+.worktrees
+coverage
+dist
+node_modules
+.env
+.env.*
+**/tests
+*.log
+.DS_Store
