@@ -10,6 +10,11 @@ continue while later deliveries return `DUPLICATE`. The winning delivery invokes
 commits its marker only after the handler succeeds. A handler failure rolls back the marker so a
 later delivery can retry.
 
+`processed_at` is assigned when the transactional claim begins and becomes visible only after the
+transaction commits; treat it as a claim timestamp rather than a precise completion time. Retain
+records for at least the queue's possible redelivery window, then prune them with an explicit
+retention policy so the table does not grow without bound.
+
 Database writes that must be atomic with the marker must use the transaction `client` supplied to
 the handler. External calls cannot participate in the PostgreSQL transaction and still require
 their own idempotency key or an outbox-style boundary.

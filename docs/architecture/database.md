@@ -2,7 +2,7 @@
 
 ## Schema
 
-`products` stores UUID identity, name, non-negative integer stock, and a positive version. `orders` stores UUID order and customer identity, a product foreign key, positive integer quantity and amount, status, version, a unique idempotency key, an HTTP request fingerprint, and database-generated `timestamptz` timestamps. `processed_messages` stores a unique message identifier and processing timestamp for consumer deduplication.
+`products` stores UUID identity, name, non-negative integer stock, and a positive version. `orders` stores UUID order and customer identity, a product foreign key, positive integer quantity and amount, status, version, a unique idempotency key, an HTTP request fingerprint, and database-generated `timestamptz` timestamps. `processed_messages` stores a unique message identifier and claim timestamp for consumer deduplication.
 
 `amount` uses minor currency units to avoid floating-point rounding. The API accepts it from the caller because product pricing is not modeled.
 
