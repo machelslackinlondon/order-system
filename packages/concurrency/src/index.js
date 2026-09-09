@@ -1,6 +1,7 @@
 import { createProductRepository, withTransaction } from '@order-system/database';
 
 export { createOrderConsistencySimulation } from './consistency-simulation.js';
+export { createOrderReplicationSimulation } from './replication-simulation.js';
 
 /**
  * Deliberately unsafe read-then-write reservation for the race-condition
