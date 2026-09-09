@@ -1,6 +1,7 @@
 import { createProductRepository, withTransaction } from '@order-system/database';
 
 export { createOrderConsistencySimulation } from './consistency-simulation.js';
+export { createLeaderElectionSimulation } from './leader-election-simulation.js';
 export { createOrderReplicationSimulation } from './replication-simulation.js';
 export { createOrderPartitionRouter } from './sharding-simulation.js';
 
