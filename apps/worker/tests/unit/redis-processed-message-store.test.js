@@ -11,8 +11,7 @@ function createInMemoryRedis() {
         return null;
       }
 
-      const ttlSeconds =
-        options.expiration?.type === 'EX' ? options.expiration.value : undefined;
+      const ttlSeconds = options.expiration?.type === 'EX' ? options.expiration.value : undefined;
       entries.set(key, { value, ttlSeconds });
       return 'OK';
     },
