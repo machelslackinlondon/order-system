@@ -32,3 +32,26 @@ export function createExperimentRunner({ experiments, write }) {
     },
   };
 }
+
+export async function runExperimentCli(
+  [name],
+  {
+    write = (line) => console.log(line),
+    writeError = (line) => console.error(line),
+    experiments = createConcurrencyExperiments(),
+  } = {},
+) {
+  try {
+    await createExperimentRunner({ experiments, write }).run(name);
+    return 0;
+  } catch (error) {
+    await writeError(error.message);
+    if (error instanceof UnknownExperimentError) {
+      await writeError(`Available: ${error.available.join(', ')}`);
+    }
+    return 1;
+  }
+}
+import { createConcurrencyExperiments } from './concurrency-experiments.js';
+
+export { createConcurrencyExperiments };
