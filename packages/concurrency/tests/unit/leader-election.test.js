@@ -14,6 +14,9 @@ function createFakeClock() {
     now() {
       return currentTime;
     },
+    set(timestamp) {
+      currentTime = timestamp;
+    },
   };
 }
 
@@ -152,5 +155,40 @@ describe('leader election simulation', () => {
         now: 0,
       }),
     ).toThrow('Leader election clock must be a function');
+  });
+
+  it('rejects a non-finite clock value before electing a leader', () => {
+    const clock = createFakeClock();
+    const { simulation } = createSimulation({ clock });
+    clock.set(Number.NaN);
+
+    expect(() => simulation.electLeader()).toThrow(
+      'Leader election clock must return a finite number',
+    );
+    expect(simulation.getLeader()).toBeNull();
+  });
+
+  it('rejects a non-finite heartbeat time without changing the leader', () => {
+    const clock = createFakeClock();
+    const { simulation } = createSimulation({ clock });
+    simulation.electLeader();
+    clock.set(Number.NaN);
+
+    expect(() => simulation.heartbeat('worker-a')).toThrow(
+      'Leader election clock must return a finite number',
+    );
+    expect(simulation.getLeader()).toBe('worker-a');
+  });
+
+  it('rejects a non-finite failure-check time without changing the leader', () => {
+    const clock = createFakeClock();
+    const { simulation } = createSimulation({ clock });
+    simulation.electLeader();
+    clock.set(Number.NaN);
+
+    expect(() => simulation.checkLeader()).toThrow(
+      'Leader election clock must return a finite number',
+    );
+    expect(simulation.getLeader()).toBe('worker-a');
   });
 });
