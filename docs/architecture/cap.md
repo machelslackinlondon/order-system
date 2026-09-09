@@ -8,8 +8,10 @@ For this order system:
 
 - **Consistency** means successful order and inventory operations agree with one serial history. A
   confirmed reservation must not oversell stock, and retries must resolve to the same order.
-- **Availability** means every request reaching a healthy node eventually receives a non-error
-  response. Returning `503` quickly is operationally useful, but it gives up CAP availability.
+- **Availability** means every request reaching a healthy node eventually receives a response. A
+  normal business rejection can be valid; refusing an otherwise valid operation only because
+  replicas cannot communicate gives up CAP availability, even when a quick `503` is operationally
+  useful.
 - **Partition tolerance** means the chosen guarantees still hold when messages between nodes are
   delayed or lost. Once state is distributed, network partitions cannot be designed away.
 
