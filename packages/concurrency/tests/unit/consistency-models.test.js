@@ -12,6 +12,10 @@ const pendingOrder = {
 const pendingRecord = { ...pendingOrder, version: 1 };
 const confirmedRecord = { ...pendingOrder, status: 'CONFIRMED', version: 2 };
 
+function orderWithAudit() {
+  return { ...pendingOrder, audit: { actor: 'customer' } };
+}
+
 function createSimulation() {
   expect(concurrency.createOrderConsistencySimulation).toEqual(expect.any(Function));
   return concurrency.createOrderConsistencySimulation();
@@ -58,5 +62,70 @@ describe('order consistency model simulation', () => {
     expect(simulation.applyNextReadModelUpdate()).toEqual(confirmedRecord);
     expect(simulation.readModel('order-123')).toEqual(confirmedRecord);
     expect(simulation.applyNextReadModelUpdate()).toBeNull();
+  });
+
+  it('isolates the source of truth from nested input mutations', () => {
+    const simulation = createSimulation();
+    const order = orderWithAudit();
+
+    simulation.writeOrder(order);
+    order.audit.actor = 'mutated-input';
+
+    expect(simulation.readSource('order-123')).toEqual({
+      ...pendingRecord,
+      audit: { actor: 'customer' },
+    });
+  });
+
+  it('isolates the source of truth from nested write-result mutations', () => {
+    const simulation = createSimulation();
+
+    const write = simulation.writeOrder(orderWithAudit());
+    write.order.audit.actor = 'mutated-result';
+
+    expect(simulation.readSource('order-123')).toEqual({
+      ...pendingRecord,
+      audit: { actor: 'customer' },
+    });
+  });
+
+  it('isolates the read model from nested projection-result mutations', () => {
+    const simulation = createSimulation();
+    simulation.writeOrder(orderWithAudit());
+
+    const applied = simulation.applyNextReadModelUpdate();
+    applied.audit.actor = 'mutated-result';
+    const firstRead = simulation.readModel('order-123');
+    firstRead.audit.actor = 'mutated-read';
+
+    expect(simulation.readModel('order-123')).toEqual({
+      ...pendingRecord,
+      audit: { actor: 'customer' },
+    });
+  });
+
+  it.each([
+    { label: 'a null value', order: null },
+    { label: 'a missing ID', order: { status: 'PENDING' } },
+    { label: 'an empty ID', order: { id: '', status: 'PENDING' } },
+    { label: 'a non-string ID', order: { id: 123, status: 'PENDING' } },
+  ])('rejects an invalid order with $label', ({ order }) => {
+    const simulation = createSimulation();
+
+    expect(() => simulation.writeOrder(order)).toThrow('Order must have a non-empty string ID');
+  });
+
+  it.each([
+    { label: 'null', token: null },
+    { label: 'missing fields', token: {} },
+    { label: 'empty order ID', token: { orderId: '', minimumVersion: 1 } },
+    { label: 'negative version', token: { orderId: 'order-123', minimumVersion: -1 } },
+    { label: 'fractional version', token: { orderId: 'order-123', minimumVersion: 1.5 } },
+  ])('rejects a session token with $label', ({ token }) => {
+    const simulation = createSimulation();
+
+    expect(() => simulation.readForSession(token)).toThrow(
+      'Session token must contain an order ID and non-negative integer minimum version',
+    );
   });
 });
