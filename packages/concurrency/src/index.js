@@ -1,5 +1,7 @@
 import { createProductRepository, withTransaction } from '@order-system/database';
 
+export { createOrderConsistencySimulation } from './consistency-simulation.js';
+
 /**
  * Deliberately unsafe read-then-write reservation for the race-condition
  * experiment. Do not use this implementation in the order-processing path.
