@@ -43,13 +43,19 @@ export function createExperimentRunner({ experiments, write }) {
 }
 
 export async function runExperimentCli(
-  [name],
+  args,
   {
     write = (line) => console.log(line),
     writeError = (line) => console.error(line),
     experiments = createExperiments(),
   } = {},
 ) {
+  if (args.length !== 1) {
+    await writeError('Usage: node packages/experiments/src/cli.js <experiment>');
+    return 1;
+  }
+
+  const [name] = args;
   try {
     await createExperimentRunner({ experiments, write }).run(name);
     return 0;
