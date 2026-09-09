@@ -16,6 +16,10 @@ validation, duplicate suppression, and retry cleanup. An executable
 capabilities and rejects wildcard or administrative grants. These remain isolated examples;
 PostgreSQL remains the default transactional deduplication mechanism.
 
+[Local observability](docs/architecture/observability.md) emits structured order-request records,
+propagates correlation IDs into `ORDER_CREATED` messages, wraps worker handling, and exposes
+process-local metrics without external telemetry dependencies.
+
 See the [failure-mode guidance](docs/architecture/failure-modes.md) for current outage behavior and
 the [messaging-semantics guidance](docs/architecture/messaging-semantics.md) for the distinction
 between delivery guarantees and application-level effects.
@@ -130,3 +134,4 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 - Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
 - Queue-to-worker delivery, retry, deduplication, lock integration, and payments arrive in later phases.
 - The deployment profile is fully local and provides no durable cross-process message broker.
+- Observability metrics are process-local and reset on restart.

@@ -20,6 +20,10 @@ Fastify validates the HTTP body and `Idempotency-Key`. The order service first r
 
 On the normal path, the winning request publishes one `ORDER_CREATED` message after persistence. Matching sequential or concurrent retries return the committed order without publishing another message. Database persistence and local publication are not atomic; the queue guidance records this failure window.
 
+The order route derives a correlation ID from the request header or request ID and carries it
+through the service into the published message. The API records the request outcome, and an exported
+worker wrapper can record message outcomes with the same correlation ID.
+
 The HTTP path reads stock but does not reserve or decrement it. Transaction and locking behavior is demonstrated separately, while queue-to-worker processing remains a later step. A `201` response means the request is currently eligible for processing, not that fulfillment is guaranteed.
 
 ## Boundaries
@@ -31,6 +35,8 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
   educational delivery-semantics simulations.
 - `packages/retries` owns failure classification, retry delays, and dead-letter records.
 - `packages/locks` owns token-based Redis lease acquisition and safe release.
+- `packages/observability` owns structured local records, correlation context, and in-memory
+  metrics.
 - `packages/access-control` owns executable local workload capability policies; these are guidance
   and are not enforced by the runtime.
 - `packages/concurrency` owns isolated race, locking, network-partition, consistency, replication,
