@@ -23,7 +23,9 @@ SET <key> 1 NX EX <ttl-seconds>
 
 `NX` permits one winner and returns no result for duplicates. `EX` bounds retention; once the TTL
 expires, the message can be claimed again. The unit test uses a shared in-memory Redis double whose
-conditional and expiry behavior depends on those options.
+conditional and clock-driven expiry behavior depends on those options. It does not prove
+client/server interoperability; run a focused test against a real local Redis server before wiring
+this alternative into a runtime.
 
 ## Consistency and hotspots
 

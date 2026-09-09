@@ -4,20 +4,33 @@ import * as worker from '../../src/index.js';
 
 function createInMemoryRedis() {
   const entries = new Map();
+  let nowSeconds = 0;
+
+  function currentEntry(key) {
+    const entry = entries.get(key);
+
+    if (entry?.expiresAt !== undefined && entry.expiresAt <= nowSeconds) {
+      entries.delete(key);
+      return undefined;
+    }
+
+    return entry;
+  }
 
   return {
     async set(key, value, options = {}) {
-      if (options.condition === 'NX' && entries.has(key)) {
+      if (options.condition === 'NX' && currentEntry(key)) {
         return null;
       }
 
       const ttlSeconds = options.expiration?.type === 'EX' ? options.expiration.value : undefined;
-      entries.set(key, { value, ttlSeconds });
+      const expiresAt = ttlSeconds === undefined ? undefined : nowSeconds + ttlSeconds;
+      entries.set(key, { value, expiresAt });
       return 'OK';
     },
 
-    async ttl(key) {
-      return entries.get(key)?.ttlSeconds ?? -1;
+    advanceSeconds(seconds) {
+      nowSeconds += seconds;
     },
   };
 }
@@ -55,14 +68,16 @@ describe('Redis processed-message store', () => {
     ).resolves.toEqual([true, true]);
   });
 
-  it('sets an expiry on a successful claim', async () => {
+  it('allows a message to be claimed again after its TTL expires', async () => {
     const client = createInMemoryRedis();
     const store = processedMessageStore(client);
+    const claim = { consumer: 'inventory', messageId: 'message-1', ttlSeconds: 60 };
 
-    await store.tryClaim({ consumer: 'inventory', messageId: 'message-1', ttlSeconds: 60 });
+    await expect(store.tryClaim(claim)).resolves.toBe(true);
+    await expect(store.tryClaim(claim)).resolves.toBe(false);
 
-    await expect(client.ttl('order-system:processed-message:inventory:message-1')).resolves.toBe(
-      60,
-    );
+    client.advanceSeconds(60);
+
+    await expect(store.tryClaim(claim)).resolves.toBe(true);
   });
 });
