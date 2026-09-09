@@ -26,6 +26,16 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
   let leaderId = null;
   let lastHeartbeatAt = null;
 
+  function readClock() {
+    const timestamp = now();
+
+    if (!Number.isFinite(timestamp)) {
+      throw new TypeError('Leader election clock must return a finite number');
+    }
+
+    return timestamp;
+  }
+
   function electLeaderAt(timestamp) {
     if (leaderId !== null) {
       return leaderId;
@@ -38,7 +48,7 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
   }
 
   function electLeader() {
-    return leaderId === null ? electLeaderAt(now()) : leaderId;
+    return leaderId === null ? electLeaderAt(readClock()) : leaderId;
   }
 
   function replaceExpiredLeader(timestamp) {
@@ -61,7 +71,7 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
         throw new RangeError(`Unknown worker ID: ${String(workerId)}`);
       }
 
-      const timestamp = now();
+      const timestamp = readClock();
 
       if (leaderId !== null && timestamp - lastHeartbeatAt >= heartbeatTimeoutMs) {
         replaceExpiredLeader(timestamp);
@@ -79,11 +89,13 @@ export function createLeaderElectionSimulation({ workerIds, heartbeatTimeoutMs, 
         return electLeader();
       }
 
-      if (now() - lastHeartbeatAt < heartbeatTimeoutMs) {
+      const timestamp = readClock();
+
+      if (timestamp - lastHeartbeatAt < heartbeatTimeoutMs) {
         return leaderId;
       }
 
-      return replaceExpiredLeader(now());
+      return replaceExpiredLeader(timestamp);
     },
   };
 }
