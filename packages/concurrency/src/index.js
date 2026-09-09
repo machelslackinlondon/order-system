@@ -124,6 +124,18 @@ export function simulatePartitionedInventory({ policy, initialStock, reservation
   if (policy !== 'CP' && policy !== 'AP') {
     throw new RangeError('Partition policy must be CP or AP');
   }
+  if (!Number.isInteger(initialStock) || initialStock < 0) {
+    throw new RangeError('Initial stock must be a non-negative integer');
+  }
+  if (!Array.isArray(reservations) || reservations.length !== 2) {
+    throw new RangeError('Partition simulation requires exactly two reservations');
+  }
+  if (new Set(reservations.map(({ replica }) => replica)).size !== 2) {
+    throw new RangeError('Partition simulation requires two distinct replicas');
+  }
+  if (reservations.some(({ quantity }) => !Number.isInteger(quantity) || quantity <= 0)) {
+    throw new RangeError('Reservation quantities must be positive integers');
+  }
 
   const outcomes = reservations.map((reservation) => ({
     ...reservation,
