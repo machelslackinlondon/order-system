@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports backpressure, workers provide bounded concurrency, retries provide exponential backoff and dead-lettering, and PostgreSQL-backed deduplication prevents duplicate processing. Token-owned Redis leases demonstrate cross-process locking, and a partition simulation demonstrates CAP trade-offs without changing the production request path.
+`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports backpressure, workers provide bounded concurrency, retries provide exponential backoff and dead-lettering, and PostgreSQL-backed deduplication prevents duplicate processing. Token-owned Redis leases demonstrate cross-process locking, while partition and read-model simulations demonstrate CAP and consistency trade-offs without changing the production request path.
 
 ## Architecture direction
 
