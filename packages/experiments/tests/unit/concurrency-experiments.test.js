@@ -22,6 +22,8 @@ describe('concurrency experiment commands', () => {
         observations: ['Accepted reservations: 2', 'Expected stock: 4', 'Actual stock: 7'],
         conclusion: 'A lost update kept only one of two accepted reservations.',
       },
+      'packages/concurrency/src/index.js',
+      ['3c03007', 'be69c50'],
     ],
     [
       'optimistic-lock',
@@ -29,6 +31,8 @@ describe('concurrency experiment commands', () => {
         observations: ['Reservation attempts: 2', 'Final stock: 6', 'Final version: 3'],
         conclusion: 'The stale version conflicted, then a fresh read allowed a safe retry.',
       },
+      'packages/concurrency/src/index.js',
+      ['470ba83', '110544d'],
     ],
     [
       'pessimistic-lock',
@@ -36,6 +40,8 @@ describe('concurrency experiment commands', () => {
         observations: ['Completion order: order-1, order-2', 'Final stock: 4'],
         conclusion: 'Exclusive access serialized both reservations and preserved every update.',
       },
+      'packages/experiments/src/concurrency-experiments.js',
+      ['a39afbe', '6c95717'],
     ],
     [
       'idempotency',
@@ -43,6 +49,8 @@ describe('concurrency experiment commands', () => {
         observations: ['Requests: 3', 'Orders created: 1', 'Returned order IDs: order-1'],
         conclusion: 'Every retry resolved to the single result stored for its idempotency key.',
       },
+      'packages/experiments/src/concurrency-experiments.js',
+      ['a39afbe', '6c95717'],
     ],
     [
       'distributed-lock',
@@ -54,13 +62,14 @@ describe('concurrency experiment commands', () => {
         ],
         conclusion: 'A token-owned lease admitted one owner and rejected its contender.',
       },
+      'packages/locks/src/index.js',
+      ['dd3cff3', '642cadd'],
     ],
-  ])('runs the %s scenario', async (name, expected) => {
+  ])('runs the %s scenario', async (name, expected, source, commits) => {
     const experiment = experimentsApi.createConcurrencyExperiments().get(name);
 
     await expect(experiment.run()).resolves.toEqual(expected);
-    expect(experiment.source).toEqual(expect.stringMatching(/^(apps|packages)\//));
-    expect(experiment.commits).not.toEqual([]);
+    expect(experiment).toMatchObject({ source, commits });
   });
 });
 

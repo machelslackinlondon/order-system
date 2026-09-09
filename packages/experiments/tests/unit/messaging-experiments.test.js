@@ -21,6 +21,8 @@ describe('messaging and worker experiment commands', () => {
         observations: ['Attempts: 3', 'Backoff delays: 1000ms, 2000ms', 'Dead letters: 0'],
         conclusion: 'Two transient failures backed off before the third attempt succeeded.',
       },
+      'packages/retries/src/index.js',
+      ['c861e1c', 'fc4c983'],
     ],
     [
       'deduplication',
@@ -29,6 +31,8 @@ describe('messaging and worker experiment commands', () => {
         conclusion:
           'Redelivery repeated the handler but the stable message ID protected the effect.',
       },
+      'packages/queue/src/messaging-semantics.js',
+      ['10b051d', 'b4a0219'],
     ],
     [
       'worker-pool',
@@ -36,6 +40,8 @@ describe('messaging and worker experiment commands', () => {
         observations: ['Jobs submitted: 6', 'Maximum active workers: 2', 'Successful jobs: 6'],
         conclusion: 'The pool drained every job without exceeding its configured concurrency.',
       },
+      'apps/worker/src/worker-pool.js',
+      ['ebd2980', 'c69ef04'],
     ],
     [
       'backpressure',
@@ -43,13 +49,14 @@ describe('messaging and worker experiment commands', () => {
         observations: ['Queue capacity: 1', 'Accepted messages: 1', 'Rejected messages: 1'],
         conclusion: 'The bounded queue rejected excess work instead of growing without limit.',
       },
+      'packages/queue/src/index.js',
+      ['f8afd73', '97c4446'],
     ],
-  ])('runs the %s scenario', async (name, expected) => {
+  ])('runs the %s scenario', async (name, expected, source, commits) => {
     const experiment = experimentsApi.createMessagingExperiments().get(name);
 
     await expect(experiment.run()).resolves.toEqual(expected);
-    expect(experiment.source).toEqual(expect.stringMatching(/^(apps|packages)\//));
-    expect(experiment.commits).not.toEqual([]);
+    expect(experiment).toMatchObject({ source, commits });
   });
 
   it('makes messaging commands available to the CLI', async () => {
