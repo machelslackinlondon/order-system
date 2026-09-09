@@ -28,10 +28,11 @@ function isValidRule(rule) {
   return (
     rule !== null &&
     typeof rule === 'object' &&
+    typeof rule.resource === 'string' &&
     RESOURCE_PATTERN.test(rule.resource) &&
     Array.isArray(rule.actions) &&
     rule.actions.length > 0 &&
-    rule.actions.every((action) => ALLOWED_ACTIONS.has(action))
+    Array.from(rule.actions).every((action) => ALLOWED_ACTIONS.has(action))
   );
 }
 
@@ -55,7 +56,11 @@ export function createLocalAuthorizer(policies = DEFAULT_POLICIES) {
   const grantsByWorkload = new Map();
 
   for (const [workload, rules] of Object.entries(policies)) {
-    if (!isNonEmptyString(workload) || !Array.isArray(rules) || !rules.every(isValidRule)) {
+    if (
+      !isNonEmptyString(workload) ||
+      !Array.isArray(rules) ||
+      !Array.from(rules).every(isValidRule)
+    ) {
       throw new InvalidLocalAccessPolicyError();
     }
 
@@ -69,7 +74,16 @@ export function createLocalAuthorizer(policies = DEFAULT_POLICIES) {
   }
 
   return {
-    isAllowed({ workload, resource, action }) {
+    isAllowed(request) {
+      if (request === null || typeof request !== 'object' || Array.isArray(request)) {
+        return false;
+      }
+
+      const { workload, resource, action } = request;
+      if (![workload, resource, action].every(isNonEmptyString)) {
+        return false;
+      }
+
       return grantsByWorkload.get(workload)?.has(capabilityKey(resource, action)) ?? false;
     },
   };
