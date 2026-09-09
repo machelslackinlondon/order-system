@@ -19,12 +19,12 @@ describe('order partition routing', () => {
   it('co-locates orders belonging to the same customer', () => {
     const router = createRouter();
 
-    expect(router.route({ id: 'order-1', customerId: 'customer-123', productId: 'product-a' })).toBe(
-      'partition-3',
-    );
-    expect(router.route({ id: 'order-2', customerId: 'customer-123', productId: 'product-b' })).toBe(
-      'partition-3',
-    );
+    expect(
+      router.route({ id: 'order-1', customerId: 'customer-123', productId: 'product-a' }),
+    ).toBe('partition-3');
+    expect(
+      router.route({ id: 'order-2', customerId: 'customer-123', productId: 'product-b' }),
+    ).toBe('partition-3');
   });
 
   it('spreads selected customer keys across the configured partitions', () => {
