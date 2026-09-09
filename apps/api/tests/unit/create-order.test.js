@@ -167,4 +167,39 @@ describe('createOrderService', () => {
 
     await expect(service.createOrder(validInput)).rejects.toBe(databaseError);
   });
+
+  it('propagates event publication failure after the order is inserted', async () => {
+    const publicationError = Object.assign(new Error('queue unavailable'), {
+      code: 'QUEUE_SHUTDOWN',
+    });
+    let orderInserted = false;
+    const service = createOrderService({
+      productRepository: {
+        async findById() {
+          return { id: productId, name: 'Keyboard', stock: 4 };
+        },
+      },
+      orderRepository: {
+        async findByIdempotencyKey() {
+          return null;
+        },
+        async createIdempotent() {
+          orderInserted = true;
+          return { created: true, order: persistedOrder };
+        },
+      },
+      idGenerator: () => orderId,
+      orderCreatedPublisher: {
+        async publish() {
+          if (!orderInserted) {
+            throw new Error('event published before order insertion');
+          }
+          throw publicationError;
+        },
+      },
+    });
+
+    await expect(service.createOrder(validInput)).rejects.toBe(publicationError);
+    expect(orderInserted).toBe(true);
+  });
 });
