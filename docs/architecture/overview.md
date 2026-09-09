@@ -27,7 +27,8 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
 - `apps/api` owns HTTP validation, stable error responses, and application decisions.
 - `packages/database` owns connection pooling, migrations, parameterized SQL, row mapping, and database availability translation.
 - `packages/events` owns stable message construction.
-- `packages/queue` owns the local FIFO delivery and acknowledgement contract.
+- `packages/queue` owns the local FIFO delivery and acknowledgement contract, backpressure, and
+  educational delivery-semantics simulations.
 - `packages/retries` owns failure classification, retry delays, and dead-letter records.
 - `packages/locks` owns token-based Redis lease acquisition and safe release.
 - `packages/concurrency` owns isolated race, locking, network-partition, consistency, replication,
