@@ -25,6 +25,7 @@ const orderService = createOrderService({
   productRepository: createProductRepository(pool),
   orderRepository: createOrderRepository(pool),
   idGenerator: randomUUID,
+  observability,
   orderCreatedPublisher: createOrderCreatedPublisher({ queue }),
 });
 app = buildApp({ orderService, observability, logger: true });

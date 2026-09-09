@@ -29,6 +29,7 @@ export function createOrderService({
   productRepository,
   orderRepository,
   idGenerator,
+  observability,
   orderCreatedPublisher = noOrderCreatedPublisher,
 }) {
   return {
@@ -67,6 +68,7 @@ export function createOrderService({
         return resolveIdempotentOrder(result, requestFingerprint);
       }
 
+      observability?.metrics.increment('orders_created_total');
       await orderCreatedPublisher.publish(result.order, input.requestContext);
       return result.order;
     },

@@ -24,7 +24,6 @@ export async function registerOrdersRoute(app, { orderService, observability }) 
       operation?.complete({
         status: 'CREATED',
         context: { orderId: order.id },
-        counters: ['orders_created_total'],
       });
 
       return reply.code(201).send(order);

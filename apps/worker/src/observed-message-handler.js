@@ -7,9 +7,10 @@ export function createObservedMessageHandler({ handler, workerId, observability 
 
     try {
       const result = await handler(message);
+      const duplicate = result?.status === 'DUPLICATE';
       operation.complete({
-        status: 'COMPLETED',
-        counters: ['orders_completed_total'],
+        status: duplicate ? 'DUPLICATE' : 'COMPLETED',
+        counters: [duplicate ? 'deduplication_count' : 'orders_completed_total'],
       });
       return result;
     } catch (error) {
