@@ -2,8 +2,23 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 import { createClient } from 'redis';
 
+function requireTestRedisUrl(value) {
+  if (!value) {
+    throw new Error('TEST_REDIS_URL must select a dedicated nonzero Redis database');
+  }
+
+  const url = new URL(value);
+  const database = Number(url.pathname.slice(1));
+
+  if (!Number.isInteger(database) || database <= 0) {
+    throw new Error('TEST_REDIS_URL must select a dedicated nonzero Redis database');
+  }
+
+  return value;
+}
+
+const redisUrl = requireTestRedisUrl(process.env.TEST_REDIS_URL);
 const lockApi = import('../../src/index.js');
-const redisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
 
 function silentClient(options = {}) {
   const client = createClient(options);
@@ -60,6 +75,20 @@ describe('Redis distributed lock', () => {
     const remainingTtl = await firstClient.pTTL('test-lock:inventory:product-1');
     expect(remainingTtl).toBeGreaterThan(0);
     expect(remainingTtl).toBeLessThanOrEqual(500);
+  });
+
+  it('generates a distinct owner token for each acquired lease by default', async () => {
+    const { createRedisLock } = await lockApi;
+    const lock = createRedisLock({ client: firstClient });
+
+    const [firstLease, secondLease] = await Promise.all([
+      lock.acquire('order:123', { ttlMs: 1_000 }),
+      lock.acquire('order:456', { ttlMs: 1_000 }),
+    ]);
+
+    expect(firstLease.token).toEqual(expect.any(String));
+    expect(secondLease.token).toEqual(expect.any(String));
+    expect(firstLease.token).not.toBe(secondLease.token);
   });
 
   it('returns no lease when another owner holds the resource', async () => {
@@ -178,6 +207,28 @@ describe('Redis distributed lock', () => {
     await expect(lock.acquire('order:123', { ttlMs: 1_000 })).rejects.toMatchObject({
       code: 'REDIS_LOCK_UNAVAILABLE',
       operation: 'ACQUIRE',
+      cause: expect.any(Error),
+    });
+
+    if (unavailableClient.isOpen) {
+      unavailableClient.destroy();
+    }
+  });
+
+  it('surfaces Redis unavailability when release outcome is unknown', async () => {
+    const { createRedisLock } = await lockApi;
+    const unavailableClient = silentClient({
+      url: 'redis://127.0.0.1:6399',
+      socket: { connectTimeout: 100, reconnectStrategy: false },
+    });
+    await unavailableClient.connect().catch(() => undefined);
+    const lock = createRedisLock({ client: unavailableClient });
+
+    await expect(
+      lock.release({ resource: 'order:123', token: 'worker-a-token', ttlMs: 1_000 }),
+    ).rejects.toMatchObject({
+      code: 'REDIS_LOCK_UNAVAILABLE',
+      operation: 'RELEASE',
       cause: expect.any(Error),
     });
 
