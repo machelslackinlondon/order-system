@@ -59,15 +59,47 @@ describe('local workload access control', () => {
   });
 
   it.each([
+    ['an omitted request', undefined],
+    ['a null request', null],
+    [
+      'a coercible resource',
+      { workload: 'api', resource: { toString: () => 'database.orders' }, action: 'read' },
+    ],
+    [
+      'a coercible action',
+      { workload: 'api', resource: 'database.orders', action: { toString: () => 'read' } },
+    ],
+    ['a symbol resource', { workload: 'api', resource: Symbol('database.orders'), action: 'read' }],
+    ['a symbol action', { workload: 'api', resource: 'database.orders', action: Symbol('read') }],
+  ])('denies %s without throwing', (_case, request) => {
+    const authorizer = localAuthorizer();
+
+    expect(authorizer.isAllowed(request)).toBe(false);
+  });
+
+  it.each([
     ['a wildcard resource', { service: [{ resource: '*', actions: ['read'] }] }],
     ['a wildcard action', { service: [{ resource: 'database.orders', actions: ['*'] }] }],
     [
       'an administrative action',
       { service: [{ resource: 'database.orders', actions: ['admin'] }] },
     ],
-  ])('rejects %s', (_case, policies) => {
-    expect(() => localAuthorizer(policies)).toThrow(
-      expect.objectContaining({ code: 'INVALID_LOCAL_ACCESS_POLICY' }),
-    );
+    [
+      'a coercible resource',
+      {
+        service: [{ resource: { toString: () => 'database.orders' }, actions: ['read'] }],
+      },
+    ],
+    [
+      'a symbol resource',
+      { service: [{ resource: Symbol('database.orders'), actions: ['read'] }] },
+    ],
+    ['a sparse rule list', { service: Array(1) }],
+    ['a sparse action list', { service: [{ resource: 'database.orders', actions: Array(1) }] }],
+  ])('rejects %s with a stable error', (_case, policies) => {
+    const create = () => localAuthorizer(policies);
+
+    expect(create).toThrow(accessControl.InvalidLocalAccessPolicyError);
+    expect(create).toThrow(expect.objectContaining({ code: 'INVALID_LOCAL_ACCESS_POLICY' }));
   });
 });
