@@ -1,6 +1,7 @@
 # Local infrastructure
 
-The root `docker-compose.yml` runs the system without managed or cloud services.
+The root `docker-compose.yml` runs stateful dependencies by default and the application stack
+through the optional `app` profile, without managed or cloud services.
 
 | Service       | Purpose                                      | Local endpoint      | Persistent volume |
 | ------------- | -------------------------------------------- | ------------------- | ----------------- |
@@ -10,7 +11,7 @@ The root `docker-compose.yml` runs the system without managed or cloud services.
 | PostgreSQL 17 | Source-of-truth orders and inventory         | `localhost:5432`    | `postgres-data`   |
 | Redis 7.4     | Cache and distributed-lock experiments       | `localhost:6379`    | `redis-data`      |
 
-Start and inspect the services with:
+Start and inspect only PostgreSQL and Redis with:
 
 ```bash
 docker compose up -d

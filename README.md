@@ -54,11 +54,12 @@ curl --fail http://127.0.0.1:8080/health
 
 See the [local infrastructure guidance](infra/docker/README.md) for lifecycle and boundary details.
 
-In a second terminal, create an order:
+In a second terminal, create an order through the container gateway. Use port `3000` instead when
+running the API natively:
 
 ```bash
 curl --fail-with-body \
-  --request POST http://127.0.0.1:3000/orders \
+  --request POST http://127.0.0.1:8080/orders \
   --header 'Content-Type: application/json' \
   --header 'Idempotency-Key: order-request-123' \
   --data '{
