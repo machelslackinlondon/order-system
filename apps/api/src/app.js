@@ -14,7 +14,7 @@ function errorBody(code, message) {
   return { error: { code, message } };
 }
 
-export function buildApp({ orderService, logger = false }) {
+export function buildApp({ orderService, observability, logger = false }) {
   const app = Fastify({
     logger,
     ajv: {
@@ -44,7 +44,7 @@ export function buildApp({ orderService, logger = false }) {
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
-  app.register(registerOrdersRoute, { orderService });
+  app.register(registerOrdersRoute, { orderService, observability });
 
   return app;
 }

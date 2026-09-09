@@ -115,7 +115,10 @@ describe('order request observability', () => {
 
     const response = await app.inject({
       ...request,
-      headers: { ...request.headers, 'x-correlation-id': undefined },
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': 'checkout-123',
+      },
     });
 
     expect(response.statusCode).toBe(503);

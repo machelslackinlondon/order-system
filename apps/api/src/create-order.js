@@ -67,7 +67,7 @@ export function createOrderService({
         return resolveIdempotentOrder(result, requestFingerprint);
       }
 
-      await orderCreatedPublisher.publish(result.order);
+      await orderCreatedPublisher.publish(result.order, input.requestContext);
       return result.order;
     },
   };

@@ -10,3 +10,4 @@ export {
   InvalidOrderCreatedEventError,
 } from './order-created-analytics-consumer.js';
 export { createRedisProcessedMessageStore } from './redis-processed-message-store.js';
+export { createObservedMessageHandler } from './observed-message-handler.js';
