@@ -1,5 +1,33 @@
 function copy(record) {
-  return record ? { ...record } : null;
+  return record ? structuredClone(record) : null;
+}
+
+function validateOrder(order) {
+  if (
+    !order ||
+    typeof order !== 'object' ||
+    Array.isArray(order) ||
+    typeof order.id !== 'string' ||
+    order.id.length === 0
+  ) {
+    throw new TypeError('Order must have a non-empty string ID');
+  }
+}
+
+function validateSessionToken(token) {
+  if (
+    !token ||
+    typeof token !== 'object' ||
+    Array.isArray(token) ||
+    typeof token.orderId !== 'string' ||
+    token.orderId.length === 0 ||
+    !Number.isInteger(token.minimumVersion) ||
+    token.minimumVersion < 0
+  ) {
+    throw new TypeError(
+      'Session token must contain an order ID and non-negative integer minimum version',
+    );
+  }
 }
 
 export function createOrderConsistencySimulation() {
@@ -9,8 +37,10 @@ export function createOrderConsistencySimulation() {
 
   return {
     writeOrder(order) {
+      validateOrder(order);
+
       const version = (source.get(order.id)?.version ?? 0) + 1;
-      const record = { ...order, version };
+      const record = structuredClone({ ...order, version });
 
       source.set(order.id, record);
       pendingUpdates.push(record);
@@ -29,7 +59,10 @@ export function createOrderConsistencySimulation() {
       return copy(readModel.get(orderId));
     },
 
-    readForSession({ orderId, minimumVersion }) {
+    readForSession(token) {
+      validateSessionToken(token);
+
+      const { orderId, minimumVersion } = token;
       const projected = readModel.get(orderId);
 
       if (projected && projected.version >= minimumVersion) {
