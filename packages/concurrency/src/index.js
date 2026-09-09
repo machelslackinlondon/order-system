@@ -130,7 +130,11 @@ export function simulatePartitionedInventory({ policy, initialStock, reservation
   if (!Array.isArray(reservations) || reservations.length !== 2) {
     throw new RangeError('Partition simulation requires exactly two reservations');
   }
-  if (new Set(reservations.map(({ replica }) => replica)).size !== 2) {
+  const replicas = reservations.map(({ replica }) => replica);
+  if (
+    replicas.some((replica) => typeof replica !== 'string' || replica.length === 0) ||
+    new Set(replicas).size !== 2
+  ) {
     throw new RangeError('Partition simulation requires two distinct replicas');
   }
   if (reservations.some(({ quantity }) => !Number.isInteger(quantity) || quantity <= 0)) {
