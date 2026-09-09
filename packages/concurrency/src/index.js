@@ -119,3 +119,32 @@ export function createPessimisticInventoryReservation({ pool }) {
     });
   };
 }
+
+export function simulatePartitionedInventory({ policy, initialStock, reservations }) {
+  if (policy !== 'CP' && policy !== 'AP') {
+    throw new RangeError('Partition policy must be CP or AP');
+  }
+
+  const outcomes = reservations.map((reservation) => ({
+    ...reservation,
+    accepted: policy === 'AP' && reservation.quantity <= initialStock,
+  }));
+  const accepted = outcomes.filter(({ accepted }) => accepted);
+  const rejected = outcomes.filter(({ accepted }) => !accepted);
+  const totalAcceptedQuantity = accepted.reduce((total, { quantity }) => total + quantity, 0);
+
+  return {
+    policy,
+    acceptedOrderIds: accepted.map(({ orderId }) => orderId),
+    rejectedOrderIds: rejected.map(({ orderId }) => orderId),
+    replicaStock: Object.fromEntries(
+      outcomes.map(({ accepted, quantity, replica }) => [
+        replica,
+        accepted ? initialStock - quantity : initialStock,
+      ]),
+    ),
+    totalAcceptedQuantity,
+    availabilityPreserved: policy === 'AP',
+    consistencyPreserved: totalAcceptedQuantity <= initialStock,
+  };
+}
