@@ -36,6 +36,7 @@ function buildService({
   createIdempotentResult = { created: true, order: createResult },
   idGenerator = jest.fn(() => orderId),
   publishedOrders = [],
+  publishedContexts = [],
 } = {}) {
   findById.mockResolvedValue(product);
   findByIdempotencyKey.mockResolvedValue(existing);
@@ -47,8 +48,9 @@ function buildService({
       orderRepository: { findByIdempotencyKey, createIdempotent },
       idGenerator,
       orderCreatedPublisher: {
-        async publish(order) {
+        async publish(order, context) {
           publishedOrders.push(order);
+          publishedContexts.push(context);
         },
       },
     }),
@@ -58,6 +60,7 @@ function buildService({
     idGenerator,
     createResult,
     publishedOrders,
+    publishedContexts,
   };
 }
 
@@ -143,6 +146,18 @@ describe('createOrderService', () => {
 
     await expect(service.createOrder(validInput)).resolves.toEqual(persistedOrder);
     expect(publishedOrders).toEqual([]);
+  });
+
+  it('forwards request context when publishing a new order', async () => {
+    const requestContext = {
+      requestId: 'request-123',
+      correlationId: 'correlation-123',
+    };
+    const { service, publishedContexts } = buildService();
+
+    await service.createOrder({ ...validInput, requestContext });
+
+    expect(publishedContexts).toEqual([requestContext]);
   });
 
   it('rejects a reused key with a different request fingerprint', async () => {
