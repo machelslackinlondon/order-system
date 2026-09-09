@@ -82,6 +82,26 @@ function serializeError(error) {
   };
 }
 
+export function createRetryingQueueProcessor({
+  sourceQueue,
+  deadLetterQueue,
+  operation,
+  retryOptions = {},
+}) {
+  return {
+    start() {
+      return sourceQueue.consume((message) =>
+        executeWithRetry({
+          ...retryOptions,
+          message,
+          operation,
+          deadLetterQueue,
+        }),
+      );
+    },
+  };
+}
+
 export async function executeWithRetry({
   message,
   operation,
