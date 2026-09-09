@@ -30,7 +30,8 @@ The HTTP path reads stock but does not reserve or decrement it. Transaction and 
 - `packages/queue` owns the local FIFO delivery and acknowledgement contract.
 - `packages/retries` owns failure classification, retry delays, and dead-letter records.
 - `packages/locks` owns token-based Redis lease acquisition and safe release.
-- `packages/concurrency` owns isolated race, locking, partition, consistency, and replication
+- `packages/concurrency` owns isolated race, locking, network-partition, consistency, replication,
+  and sharding
   simulations; these are not wired into the request path.
 - `apps/worker` owns bounded concurrent execution and worker metrics; it is not yet connected to the queue.
 
