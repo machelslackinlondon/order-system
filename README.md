@@ -6,7 +6,7 @@ Repository: <https://github.com/machelslackinlondon/order-system>
 
 ## Current status
 
-`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports backpressure, workers provide bounded concurrency, retries provide exponential backoff and dead-lettering, and PostgreSQL-backed deduplication prevents duplicate processing. Token-owned Redis leases demonstrate cross-process locking, while network-partition, consistency, replication, sharding, and leader-election simulations demonstrate distributed-system trade-offs without changing the production request path.
+`POST /orders` validates the request and current PostgreSQL stock, persists a retry-safe `PENDING` order, and publishes one local `ORDER_CREATED` message for the winning insert. Reusing an `Idempotency-Key` with the same payload returns the original order without republishing; using it with a different payload returns `409`. The local queue supports backpressure, workers provide bounded concurrency, retries provide exponential backoff and dead-lettering, and PostgreSQL-backed deduplication prevents duplicate processing. A focused local processor composes queue delivery, retries, and dead-letter acknowledgement, but the application runtime does not start it. Token-owned Redis leases and deterministic simulations demonstrate distributed-system trade-offs without changing the production request path.
 
 An optional [Redis claim-store example](docs/architecture/redis-idempotency.md) demonstrates
 conditional duplicate suppression with TTL retention. A small
@@ -22,16 +22,19 @@ process-local metrics without external telemetry dependencies.
 
 See the [failure-mode guidance](docs/architecture/failure-modes.md) for current outage behavior and
 the [messaging-semantics guidance](docs/architecture/messaging-semantics.md) for the distinction
-between delivery guarantees and application-level effects.
+between delivery guarantees and application-level effects. The
+[architecture overview](docs/architecture/overview.md) maps every design area to its focused
+guidance and executable proof.
 
 ## Architecture direction
 
 ```text
 Customer -> Caddy gateway -> Order API -> PostgreSQL
                                   |
-                                  +-> local FIFO queue (same process)
+                                  +-> local FIFO queue (same process, no active consumer)
 
-Distributed-lock experiments ------------> Redis
+Focused retry composition: local queue -> retry policy -> handler or dead-letter queue
+Deterministic experiments: concurrency, messaging, workers, and Redis locks
 ```
 
 The optional Compose application profile runs the gateway, migrations, API, PostgreSQL, and Redis
@@ -97,6 +100,27 @@ npm run build
 PostgreSQL database and the dedicated nonzero Redis database selected by `TEST_REDIS_URL`. Start
 both services first with `docker compose up -d postgres redis`.
 
+## Run experiments
+
+The experiment commands run deterministic local scenarios without starting PostgreSQL, Redis, or
+the application runtime:
+
+```bash
+npm run experiment:race-condition
+npm run experiment:optimistic-lock
+npm run experiment:pessimistic-lock
+npm run experiment:idempotency
+npm run experiment:retries
+npm run experiment:deduplication
+npm run experiment:worker-pool
+npm run experiment:backpressure
+npm run experiment:distributed-lock
+```
+
+Each command prints the behavior, observations, result, source, and relevant commits. See the
+[experiment command guidance](docs/development/experiments.md) for boundaries and focused
+verification.
+
 ## Workspaces
 
 - `apps/api`: HTTP API boundary
@@ -109,6 +133,7 @@ both services first with `docker compose up -d postgres redis`.
 - `packages/events`: event contracts and publishing
 - `packages/concurrency`: explicit concurrency experiments
 - `packages/observability`: logs, metrics, and tracing
+- `packages/experiments`: deterministic local command runner
 
 ## TDD and Git history
 
@@ -130,8 +155,9 @@ See [`docs/development/git-workflow.md`](docs/development/git-workflow.md) for t
 
 - The stock check is advisory and inventory is not decremented.
 - The caller supplies `amount` because product pricing is not modeled yet.
-- The queue is process-local and volatile; durable delivery arrives in a later phase.
-- Order persistence and local publication are not atomic, and the API has no active queue consumer yet.
-- Queue-to-worker delivery, retry, deduplication, lock integration, and payments arrive in later phases.
+- The queue is process-local and volatile; its retrying processor is covered independently but is not started by the application runtime.
+- Order persistence and local publication are not atomic, and the API has no active queue consumer.
+- Atomic inventory reservation, worker processing, retries, deduplication, and locks remain explicit examples rather than one runtime workflow.
+- Payment processing is not modeled.
 - The deployment profile is fully local and provides no durable cross-process message broker.
 - Observability metrics are process-local and reset on restart.
