@@ -5,6 +5,9 @@
   "type": "module",
   "exports": "./src/index.js",
   "scripts": {
-    "build": "node --check src/index.js && node --check src/worker-pool.js"
+    "build": "node --check src/index.js && node --check src/idempotent-message-processor.js && node --check src/worker-pool.js"
+  },
+  "dependencies": {
+    "@order-system/database": "^0.1.0"
   }
 }

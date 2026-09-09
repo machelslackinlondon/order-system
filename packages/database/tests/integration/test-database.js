@@ -8,5 +8,5 @@ export function createTestPool() {
 }
 
 export async function resetDatabase(pool) {
-  await pool.query('TRUNCATE TABLE order_processing, orders, products CASCADE');
+  await pool.query('TRUNCATE TABLE processed_messages, order_processing, orders, products CASCADE');
 }

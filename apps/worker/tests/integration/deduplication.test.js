@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
-import { createTestPool, resetDatabase } from '../../../../packages/database/tests/integration/test-database.js';
+import {
+  createTestPool,
+  resetDatabase,
+} from '../../../../packages/database/tests/integration/test-database.js';
 
 const databaseApi = import('@order-system/database');
 const workerApi = import('../../src/index.js');
@@ -151,10 +154,10 @@ describe('idempotent message processing', () => {
     const processor = createIdempotentMessageProcessor({
       pool,
       handler: async (_receivedMessage, { client }) => {
-        await client.query(
-          'INSERT INTO order_processing (order_id, status) VALUES ($1, $2)',
-          [orderId, 'PROCESSING'],
-        );
+        await client.query('INSERT INTO order_processing (order_id, status) VALUES ($1, $2)', [
+          orderId,
+          'PROCESSING',
+        ]);
         throw new Error('processing failed after database write');
       },
     });

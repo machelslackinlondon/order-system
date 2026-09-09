@@ -30,3 +30,10 @@ export function mapOrderProcessing(row) {
     updatedAt: new Date(row.updated_at),
   };
 }
+
+export function mapProcessedMessage(row) {
+  return {
+    messageId: row.message_id,
+    processedAt: new Date(row.processed_at),
+  };
+}
